@@ -8,7 +8,7 @@
                 //The whole project
                 "${workspaceFolder}/**",
                 // FreeRTOS
-                "${workspaceFolder}/lib/FreeRTOS-Kernel"
+                "${workspaceFolder}/lib/freertos"
             ],
             //**********************************************************//
             //Macro for Intellisense, user's macro for stm32f1
