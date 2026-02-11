@@ -1,4 +1,5 @@
 /build 
 *.lst
 *.o
-lib/freertos/*.lst
+/lib/freertos/*.lst
+./vscode
