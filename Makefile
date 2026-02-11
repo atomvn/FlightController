@@ -1,4 +1,3 @@
-
 # toolchain
 TOOLCHAIN    = arm-none-eabi-
 CC           = $(TOOLCHAIN)gcc
@@ -35,12 +34,13 @@ FREERTOS_DIR = $(ROOT_DIR)/lib/freertos
 SRC_DIR     = $(ROOT_DIR)/src
 
 # link file
-LINK_SCRIPT  = $(ROOT_DIR)/config/stm32_flash.ld
+LINK_SCRIPT  = $(ROOT_DIR)/config/stm32f1_linker.ld
 
 # user specific
 SRC       =
 ASM_SRC   =
-SRC      += $(wildcard $(SRC_DIR)/**/*.c)
+SRC      += ./config/stm32f1_startup.c
+SRC      += $(wildcard $(SRC_DIR)/*.c)
 SRC      += $(wildcard $(SRC_DIR)/app/**/*.c)
 SRC      += $(wildcard $(SRC_DIR)/drivers/**/*.c)
 SRC      += $(wildcard $(SRC_DIR)/system/**/*.c)
@@ -49,7 +49,6 @@ SRC      += $(wildcard $(SRC_DIR)/system/**/*.c)
 INCLUDE_DIRS  = $(SRC_DIR)
 
 # include sub makefiles
-# include makefile_std_lib.mk   # STM32 Standard Peripheral Library
 include ./config/makefile_freertos.mk  # freertos source
 
 INC_DIR  = $(patsubst %, -I%, $(INCLUDE_DIRS))
@@ -66,9 +65,8 @@ MC_FLAGS = -mcpu=$(MCU)
 
 AS_FLAGS = $(MC_FLAGS) -g -gdwarf-2 -mthumb  -Wa,-amhls=$(<:.s=.lst)
 CP_FLAGS = $(MC_FLAGS) $(OPT) -g -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm -Wa,-ahlms=$(<:.c=.lst) $(DEFS)
-LD_FLAGS = $(MC_FLAGS) -g -gdwarf-2 -mthumb -nostartfiles -Xlinker --gc-sections -T$(LINK_SCRIPT) -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-mismatch
+LD_FLAGS = $(MC_FLAGS) -g -gdwarf-2 -mthumb  -Xlinker --gc-sections -T$(LINK_SCRIPT) -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-mismatch
 
-#
 # makefile rules
 #
 all: $(OBJECTS) $(BUILD_DIR)/$(PROJECT_NAME).elf  $(BUILD_DIR)/$(PROJECT_NAME).hex $(BUILD_DIR)/$(PROJECT_NAME).bin
@@ -89,7 +87,7 @@ all: $(OBJECTS) $(BUILD_DIR)/$(PROJECT_NAME).elf  $(BUILD_DIR)/$(PROJECT_NAME).h
 %.bin: %.elf
 	$(BIN)  $< $@
 
-flash: $(PROJECT_NAME).bin
+flash: $(BUILD_DIR)/$(PROJECT_NAME).bin
 	st-flash write $(PROJECT_NAME).bin 0x8000000
 
 erase:
