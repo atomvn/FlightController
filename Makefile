@@ -88,7 +88,7 @@ all: $(OBJECTS) $(BUILD_DIR)/$(PROJECT_NAME).elf  $(BUILD_DIR)/$(PROJECT_NAME).h
 	$(BIN)  $< $@
 
 flash: $(BUILD_DIR)/$(PROJECT_NAME).bin
-	st-flash write $(PROJECT_NAME).bin 0x8000000
+	st-flash write $(BUILD_DIR)/$(PROJECT_NAME).bin 0x8000000
 
 erase:
 	st-flash erase
