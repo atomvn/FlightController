@@ -1,7 +1,7 @@
 #include <stdint.h>
  
 #define SRAM_START 0x20000000U
-#define SRAM_SIZE  (20U * 1024U) //20KB
+#define SRAM_SIZE  (64U * 1024U) //64KB
 #define SRAM_END   ((SRAM_START) + (SRAM_SIZE))
 
 extern uint32_t _etext;
