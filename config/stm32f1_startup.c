@@ -176,13 +176,13 @@ void Reset_Handler(void) {
     uint8_t *pSrc = (uint8_t *)&_etext;
 
     for (uint32_t i = 0; i < size; i++) {
-        *pDst = *pSrc++;
+        *pDst++ = *pSrc++;
     }
 
     size = (uint32_t)&_ebss - (uint32_t)&_sbss;
     pDst = (uint8_t *)&_sbss;
     for (uint32_t i = 0; i < size; i++) {
-        *pDst = 0;
+        *pDst++ = 0;
     }
 
     main();
