@@ -1,104 +1,102 @@
-# toolchain
-TOOLCHAIN    = arm-none-eabi-
-CC           = $(TOOLCHAIN)gcc
-CP           = $(TOOLCHAIN)objcopy
-AS           = $(TOOLCHAIN)gcc -x assembler-with-cpp
-HEX          = $(CP) -O ihex
-BIN          = $(CP) -O binary -S
+###############################
+#########  Toolchain  #########
+###############################
+TOOLCHAIN    := arm-none-eabi-
+CC           := $(TOOLCHAIN)gcc
+OBJCOPY      := $(TOOLCHAIN)objcopy
+SIZE         := $(TOOLCHAIN)size
 
-# define mcu, specify the target processor
-MCU          = cortex-m3
+###############################
+##########  TARGET  ###########
+###############################
+MCU          := cortex-m3
+PROJECT_NAME := FlightController
 
-# all the files will be generated with this name (main.elf, main.bin, main.hex, etc)
-PROJECT_NAME=FlightController
+###############################
+########  Directories  ########
+###############################
+ROOT_DIR     := .
+SRC_DIR		 := $(ROOT_DIR)/src
+CONFIG_DIR   := $(ROOT_DIR)/config
+LIB_DIR      := $(ROOT_DIR)/lib
+BUILD_DIR    := $(ROOT_DIR)/build
 
-# specify define
-DDEFS       =
+LOCM3_DIR    := $(LIB_DIR)/libopencm3
+FREERTOS_DIR := $(LIB_DIR)/freertos
 
-# define root dir
-ROOT_DIR     = .
+LINK_SCRIPT  := $(CONFIG_DIR)/stm32f1_linker.ld
 
-# define include dir
-INCLUDE_DIRS = 
+###############################
+#######  Source files  ########
+###############################
+SRC          := $(shell find $(SRC_DIR) -name "*.c")
+SRC          += $(CONFIG_DIR)/stm32f1_startup.c
 
-# define build dir
-BUILD_DIR = build
 
-# define stm32f10x lib dir
-LIBOPENCM3_DIR      = $(ROOT_DIR)/lib/libopencm3
+###############################
+#######  Include paths  #######
+###############################
+INCLUDE_DIRS := $(SRC_DIR)
+INCLUDE_DIRS += $(FREERTOS_DIR)/include
 
-# define freertos dir
-FREERTOS_DIR = $(ROOT_DIR)/lib/freertos
+include $(CONFIG_DIR)/makefile_freertos.mk
 
-# define user dir
-SRC_DIR     = $(ROOT_DIR)/src
+###############################
+###########  Flags  ###########
+###############################
+INC_FLAGS    := $(addprefix -I, $(INCLUDE_DIRS))
 
-# link file
-LINK_SCRIPT  = $(ROOT_DIR)/config/stm32f1_linker.ld
+DEBUG_FLAGS  := -g -gdwarf-2
 
-# user specific
-SRC       =
-ASM_SRC   =
-SRC      += ./config/stm32f1_startup.c
-SRC      += $(wildcard $(SRC_DIR)/*.c)
-SRC      += $(wildcard $(SRC_DIR)/app/**/*.c)
-SRC      += $(wildcard $(SRC_DIR)/drivers/**/*.c)
-SRC      += $(wildcard $(SRC_DIR)/system/**/*.c)
+COMMON_FLAGS := -mcpu=$(MCU) -mthumb
+COMMON_FLAGS += -ffunction-sections -fdata-sections
+COMMON_FLAGS += -Wall
 
-# user include
-INCLUDE_DIRS  = $(SRC_DIR)
+CFLAGS       := $(COMMON_FLAGS) $(DEBUG_FLAGS) -Os -MMD -MP
 
-# include sub makefiles
-include ./config/makefile_freertos.mk  # freertos source
+LDFLAGS      := $(COMMON_FLAGS) $(DEBUG_FLAGS)
+LDFLAGS      += -T$(LINK_SCRIPT)
+LDFLAGS      += -Wl,--gc-sections
+LDFLAGS      += -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-mismatch
 
-INC_DIR  = $(patsubst %, -I%, $(INCLUDE_DIRS))
+DEFINES      := -DRUN_FROM_FLASH=1
 
-# run from Flash
-DEFS	 = $(DDEFS) -DRUN_FROM_FLASH=1
+###############################
+#######  Object files  ########
+###############################
+OBJ_FILES    := $(patsubst $(ROOT_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRC))
 
-OBJECTS  = $(ASM_SRC:.s=.o) $(SRC:.c=.o)
+DEPS         := $(OBJ_FILES:.o=.d)
 
-# Define optimisation level here
-OPT = -Os
+###############################
+###########  Rules  ###########
+###############################
+all: $(BUILD_DIR)/$(PROJECT_NAME).elf
+	$(SIZE) $<
 
-MC_FLAGS = -mcpu=$(MCU)
+$(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ_FILES)
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $^ $(LDFLAGS) -o $@
 
-AS_FLAGS = $(MC_FLAGS) -g -gdwarf-2 -mthumb  -Wa,-amhls=$(<:.s=.lst)
-CP_FLAGS = $(MC_FLAGS) $(OPT) -g -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm -Wa,-ahlms=$(<:.c=.lst) $(DEFS)
-LD_FLAGS = $(MC_FLAGS) -g -gdwarf-2 -mthumb  -Xlinker --gc-sections -T$(LINK_SCRIPT) -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-mismatch
+$(BUILD_DIR)/%.o: $(ROOT_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(DEFINES) $(INC_FLAGS) -c $< -o $@
 
-# makefile rules
-#
-all: $(OBJECTS) $(BUILD_DIR)/$(PROJECT_NAME).elf  $(BUILD_DIR)/$(PROJECT_NAME).hex $(BUILD_DIR)/$(PROJECT_NAME).bin
-	$(TOOLCHAIN)size $(BUILD_DIR)/$(PROJECT_NAME).elf
+hex: $(BUILD_DIR)/$(PROJECT_NAME).elf
+	$(OBJCOPY) -O ihex $< $(BUILD_DIR)/$(PROJECT_NAME).hex
 
-%.o: %.c
-	$(CC) -c $(CP_FLAGS) -I . $(INC_DIR) $< -o $@
+bin: $(BUILD_DIR)/$(PROJECT_NAME).elf
+	$(OBJCOPY)
 
-%.o: %.s
-	$(AS) -c $(AS_FLAGS) $< -o $@
-
-%.elf: $(OBJECTS)
-	$(CC) $(OBJECTS) $(LD_FLAGS) -o $@
-
-%.hex: %.elf
-	$(HEX) $< $@
-
-%.bin: %.elf
-	$(BIN)  $< $@
-
-flash: $(BUILD_DIR)/$(PROJECT_NAME).bin
-	st-flash write $(BUILD_DIR)/$(PROJECT_NAME).bin 0x8000000
+flash: bin
+	st-flash write $(BUILD_DIR)/$(PROJECT_NAME).bin 0x08000000
 
 erase:
 	st-flash erase
 
 clean:
-	-rm -rf $(OBJECTS)
-	-rm -rf $(BUILD_DIR)/$(PROJECT_NAME).elf
-	-rm -rf $(BUILD_DIR)/$(PROJECT_NAME).map
-	-rm -rf $(BUILD_DIR)/$(PROJECT_NAME).hex
-	-rm -rf $(BUILD_DIR)/$(PROJECT_NAME).bin
-	-rm -rf $(SRC:.c=.lst)
-	-rm -rf $(ASM_SRC:.s=.lst)
+	rm -rf $(BUILD_DIR)
 
+-include $(DEPS)
+
+.PHONY: all clean flash erase hex bin
