@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-make clean
-make
-st-flash erase
-st-flash --reset write ./*.bin 0x8000000
-
+case "$1" in
+    build) make ;;
+    flash) make flash ;;
+    clean) make clean ;;
+    *) echo "Usage: $0 {build|flash|clean}" ;;
+esac
