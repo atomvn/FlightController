@@ -27,6 +27,12 @@ FREERTOS_DIR := $(LIB_DIR)/freertos
 LINK_SCRIPT  := $(CONFIG_DIR)/stm32f1_linker.ld
 
 ###############################
+#######  Make configs  ########
+###############################
+GENERATE_LST ?= 0
+DEBUG        ?= 0
+
+###############################
 #######  Source files  ########
 ###############################
 SRC          := $(shell find $(SRC_DIR) -name "*.c")
@@ -51,10 +57,17 @@ DEBUG_FLAGS  := -g -gdwarf-2
 COMMON_FLAGS := -mcpu=$(MCU) -mthumb
 COMMON_FLAGS += -ffunction-sections -fdata-sections
 COMMON_FLAGS += -Wall
+ifeq ($(DEBUG),1)
+COMMON_FLAGS += $(DEBUG_FLAGS)
+endif
 
-CFLAGS       := $(COMMON_FLAGS) $(DEBUG_FLAGS) -Os -MMD -MP
+CFLAGS       := $(COMMON_FLAGS) -Os -MMD -MP
 
-LDFLAGS      := $(COMMON_FLAGS) $(DEBUG_FLAGS)
+ifeq ($(GENERATE_LST),1)
+$(BUILD_DIR)/%.o: CFLAGS += -Wa,-ahlms=$(@:.o=.lst)
+endif
+
+LDFLAGS      := $(COMMON_FLAGS)
 LDFLAGS      += -T$(LINK_SCRIPT)
 LDFLAGS      += -Wl,--gc-sections
 LDFLAGS      += -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-mismatch
