@@ -1,5 +1,2 @@
-/build 
-*.lst
-*.o
-./lib/freertos/*.lst
-./vscode
+build/
+.vscode/
