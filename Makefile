@@ -38,13 +38,10 @@ DEBUG        ?= 0
 SRC          := $(shell find $(SRC_DIR) -name "*.c")
 SRC          += $(CONFIG_DIR)/stm32f1_startup.c
 
-
 ###############################
 #######  Include paths  #######
 ###############################
 INCLUDE_DIRS := $(SRC_DIR)
-INCLUDE_DIRS += $(FREERTOS_DIR)/include
-
 include $(CONFIG_DIR)/makefile_freertos.mk
 
 ###############################
