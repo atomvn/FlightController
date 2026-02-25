@@ -5,6 +5,7 @@
 #define SRAM_END   ((SRAM_START) + (SRAM_SIZE))
 
 extern uint32_t _etext;
+extern uint32_t _sidata;
 extern uint32_t _sdata;
 extern uint32_t _edata;
 extern uint32_t _sbss;
@@ -49,7 +50,7 @@ void USB_HP_CAN_TX_IRQHandler(void) __attribute__((weak, alias("Default_Handler"
 void USB_LP_CAN_RX0_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void CAN_RX1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void CAN_SCE_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
-void EXTl9_5_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
+void EXTI9_5_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void TIM1_BRK_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void TIM1_UP_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void TIM1_TRG_COM_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
@@ -66,7 +67,7 @@ void SPI2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USART1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USART2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USART3_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
-void EXTl15_10_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
+void EXTI5_10_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void RTCAlarm_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USBWakeup_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void TIM8_BRK_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
@@ -127,7 +128,7 @@ uint32_t vectors[] __attribute__((section(".isr_vector"))) = {
     (uint32_t)USB_LP_CAN_RX0_IRQHandler,
     (uint32_t)CAN_RX1_IRQHandler,
     (uint32_t)CAN_SCE_IRQHandler,
-    (uint32_t)EXTl9_5_IRQHandler,
+    (uint32_t)EXTI9_5_IRQHandler,
     (uint32_t)TIM1_BRK_IRQHandler,
     (uint32_t)TIM1_UP_IRQHandler,
     (uint32_t)TIM1_TRG_COM_IRQHandler,
@@ -144,7 +145,7 @@ uint32_t vectors[] __attribute__((section(".isr_vector"))) = {
     (uint32_t)USART1_IRQHandler,
     (uint32_t)USART2_IRQHandler,
     (uint32_t)USART3_IRQHandler,
-    (uint32_t)EXTl15_10_IRQHandler,
+    (uint32_t)EXTI5_10_IRQHandler,
     (uint32_t)RTCAlarm_IRQHandler,
     (uint32_t)USBWakeup_IRQHandler,
     (uint32_t)TIM8_BRK_IRQHandler,
@@ -173,7 +174,7 @@ void Default_Handler(void) {
 void Reset_Handler(void) {
     uint32_t size = (uint32_t)&_edata - (uint32_t)&_sdata;
     uint8_t *pDst = (uint8_t *)&_sdata;
-    uint8_t *pSrc = (uint8_t *)&_etext;
+    uint8_t *pSrc = (uint8_t *)&_sidata;
 
     for (uint32_t i = 0; i < size; i++) {
         *pDst++ = *pSrc++;

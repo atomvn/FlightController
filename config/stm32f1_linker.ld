@@ -29,7 +29,7 @@ SECTIONS
 		. = ALIGN(4);
 		_edata = .;
 	} >SRAM AT >FLASH
-	_data_loadaddr = LOADADDR(.data);
+	_sidata = LOADADDR(.data);
 
 	.bss : {
 		_sbss = .;
