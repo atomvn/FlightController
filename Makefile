@@ -96,7 +96,7 @@ hex: $(BUILD_DIR)/$(PROJECT_NAME).elf
 	$(OBJCOPY) -O ihex $< $(BUILD_DIR)/$(PROJECT_NAME).hex
 
 bin: $(BUILD_DIR)/$(PROJECT_NAME).elf
-	$(OBJCOPY)
+	$(OBJCOPY) -O binary $< $(BUILD_DIR)/$(PROJECT_NAME).bin
 
 flash: bin
 	st-flash write $(BUILD_DIR)/$(PROJECT_NAME).bin 0x08000000
