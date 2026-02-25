@@ -74,6 +74,7 @@
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "../../../src/drivers/uart/uart.h"
 
 /* For backward compatibility, ensure configKERNEL_INTERRUPT_PRIORITY is
 defined.  The value should also ensure backward compatibility.
@@ -293,6 +294,7 @@ BaseType_t xPortStartScheduler( void )
 
 	#if( configASSERT_DEFINED == 1 )
 	{
+		uart1_send_string("[XTaskStartScheduler][configASSERT_DEFINED]!\n");
 		volatile uint32_t ulOriginalPriority;
 		volatile uint8_t * const pucFirstUserPriorityRegister = ( volatile uint8_t * const ) ( portNVIC_IP_REGISTERS_OFFSET_16 + portFIRST_USER_INTERRUPT_NUMBER );
 		volatile uint8_t ucMaxPriorityValue;
@@ -336,18 +338,21 @@ BaseType_t xPortStartScheduler( void )
 	#endif /* conifgASSERT_DEFINED */
 
 	/* Make PendSV and SysTick the lowest priority interrupts. */
+	uart1_send_string("[XTaskStartScheduler][configASSERT_DEFINED] End!\n");
 	portNVIC_SYSPRI2_REG |= portNVIC_PENDSV_PRI;
 	portNVIC_SYSPRI2_REG |= portNVIC_SYSTICK_PRI;
 
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled
 	here already. */
 	vPortSetupTimerInterrupt();
+	uart1_send_string("[XTaskStartScheduler][vPortSetupTimerInterrupt]!\n");
 
 	/* Initialise the critical nesting count ready for the first task. */
 	uxCriticalNesting = 0;
 
 	/* Start the first task. */
 	prvPortStartFirstTask();
+	uart1_send_string("[XTaskStartScheduler][vPortStartFirstTask]!\n");
 
 	/* Should never get here as the tasks will now be executing!  Call the task
 	exit error function to prevent compiler warnings about a static function
