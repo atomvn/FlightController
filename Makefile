@@ -12,7 +12,6 @@ SIZE         := $(TOOLCHAIN)size
 MCU          := cortex-m3
 PROJECT_NAME := FlightController
 LIBNAME	     := opencm3_stm32f1
-DEFS         += -DSTM32F1
 
 ###############################
 ########  Directories  ########
@@ -43,7 +42,6 @@ SRC          := $(shell find $(SRC_DIR) -name "*.c")
 #######  Include paths  #######
 ###############################
 INCLUDE_DIRS := $(SRC_DIR)
-INCLIDE_DIRS += OPENCM3_DIR/include
 include $(CONFIG_DIR)/makefile_freertos.mk
 
 ###############################
@@ -79,6 +77,7 @@ LDFLAGS      += -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-misma
 LDFLAGS	     += --static -nostartfiles
 
 DEFINES      := -DRUN_FROM_FLASH=1
+DEFINES      += -DSTM32F1
 
 ###############################
 #######  Object files  ########
@@ -102,7 +101,7 @@ $(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ_FILES) $(OPENCM3_DIR)/lib/lib$(LIBNAME).
 
 $(BUILD_DIR)/%.o: $(ROOT_DIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(DEFINES) $(INC_FLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INC_FLAGS) $(DEFINES) -c $< -o $@
 
 hex: $(BUILD_DIR)/$(PROJECT_NAME).elf
 	$(OBJCOPY) -O ihex $< $(BUILD_DIR)/$(PROJECT_NAME).hex
