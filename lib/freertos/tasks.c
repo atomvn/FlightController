@@ -81,7 +81,6 @@ task.h is included from an application file. */
 #include "task.h"
 #include "timers.h"
 #include "StackMacros.h"
-#include "../../../src/drivers/uart/uart.h"
 
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
@@ -1853,7 +1852,6 @@ BaseType_t xReturn;
 		else
 		{
 			xReturn = pdFAIL;
-			uart1_send_string("[vTaskStartScheduler][Idle task created] failed!\n");
 		}
 	}
 	#else
@@ -1882,14 +1880,12 @@ BaseType_t xReturn;
 
 	if( xReturn == pdPASS )
 	{
-		uart1_send_string("[vTaskStartScheduler][Scheduler started successfully] Start!\n");
 		/* Interrupts are turned off here, to ensure a tick does not occur
 		before or during the call to xPortStartScheduler().  The stacks of
 		the created tasks contain a status word with interrupts switched on
 		so interrupts will automatically get re-enabled when the first task
 		starts to run. */
 		portDISABLE_INTERRUPTS();
-		uart1_send_string("[vTaskStartScheduler][Scheduler started successfully] portDISABLE_INTERRUPTS!\n");
 		#if ( configUSE_NEWLIB_REENTRANT == 1 )
 		{
 			/* Switch Newlib's _impure_ptr variable to point to the _reent
@@ -1897,10 +1893,8 @@ BaseType_t xReturn;
 			_impure_ptr = &( pxCurrentTCB->xNewLib_reent );
 		}
 		#endif /* configUSE_NEWLIB_REENTRANT */
-		uart1_send_string("[vTaskStartScheduler][Scheduler started successfully] Switching Newlib _impure_ptr!\n");
 
 		xNextTaskUnblockTime = portMAX_DELAY;
-		uart1_send_string("[vTaskStartScheduler][Scheduler started successfully] NextTaskUnblockTime set!\n");
 		xSchedulerRunning = pdTRUE;
 		xTickCount = ( TickType_t ) 0U;
 
@@ -1908,7 +1902,6 @@ BaseType_t xReturn;
 		macro must be defined to configure the timer/counter used to generate
 		the run time counter time base. */
 		portCONFIGURE_TIMER_FOR_RUN_TIME_STATS();
-		uart1_send_string("[vTaskStartScheduler][Scheduler started successfully] portCONFIGURE_TIMER_FOR_RUN_TIME_STATS!\n");
 
 		/* Setting up the timer tick is hardware specific and thus in the
 		portable interface. */
@@ -1921,7 +1914,6 @@ BaseType_t xReturn;
 		{
 			/* Should only reach here if a task calls xTaskEndScheduler(). */
 		}
-		uart1_send_string("[vTaskStartScheduler][Scheduler started successfully] End!\n");
 	}
 	else
 	{
@@ -1929,7 +1921,6 @@ BaseType_t xReturn;
 		because there was not enough FreeRTOS heap to create the idle task
 		or the timer task. */
 		configASSERT( xReturn != errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY );
-		uart1_send_string("[vTaskStartScheduler][Failed to allocate required memory] failed!\n");
 	}
 
 	/* Prevent compiler warnings if INCLUDE_xTaskGetIdleTaskHandle is set to 0,
