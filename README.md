@@ -34,9 +34,9 @@ make erase
 ```
 
 # Roadmap
-- [x] Write guiding readme document
-- [x] Add startup file
-- [ ] Write blink led app to test the project's functionality
+- [] read MPU6050
+- [] 
+- [] 
 
 # Common errors on Ubuntu 20.04 dev enviroment
 1. st-flash    
