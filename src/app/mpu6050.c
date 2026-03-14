@@ -52,7 +52,7 @@ void convert_raw_to_physical(mpu6050_raw_data *raw, mpu6050_data *data) {
 }
 
 void calibrate_mpu6050(mpu6050_calibarting_offset *offsets) {
-    const int samples = 300;
+    const int samples = 100;
     mpu6050_calibarting_offset offset_sum = {0};
     mpu6050_raw_data data;
     mpu6050_data physical_data;
@@ -66,7 +66,7 @@ void calibrate_mpu6050(mpu6050_calibarting_offset *offsets) {
         offset_sum.gyro_x_offset  += physical_data.gyro_x;
         offset_sum.gyro_y_offset  += physical_data.gyro_y;
         offset_sum.gyro_z_offset  += physical_data.gyro_z;
-        vTaskDelay(1 / portTICK_PERIOD_MS);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     offsets->accel_x_offset = offset_sum.accel_x_offset / samples;
