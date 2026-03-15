@@ -34,9 +34,9 @@ make erase
 ```
 
 # Roadmap
-- [] read MPU6050
-- [] 
-- [] 
+- [x] read MPU6050
+- [x] read MCRE7v2
+- [] PID algr for outer loop: refine angle error
 
 # Common errors on Ubuntu 20.04 dev enviroment
 1. st-flash    
