@@ -94,7 +94,7 @@ void i2c_start_addr(I2C_control* dev, uint8_t addr, int rw) {
     TickType_t start_time = systicks();
 
     i2c_wait_busy(dev); // wait until I2C is not busy before starting a new transaction
-	uart_send_string("[LOG] [i2c_start_addr] After checking busy flag\n");
+	// uart_send_string("[LOG] [i2c_start_addr] After checking busy flag\n");
     I2C_SR1(dev->device) &= ~I2C_SR1_AF; // clear address NACK flag before starting transaction
     i2c_clear_stop(dev->device); // clear stop bit to avoid generating a stop condition when the transaction is started
     if (rw == I2C_READ) {
@@ -109,7 +109,7 @@ void i2c_start_addr(I2C_control* dev, uint8_t addr, int rw) {
         }
         taskYIELD(); // yield to other tasks while waiting
     }
-	uart_send_string("[LOG] [i2c_start_addr] After checking SB bit\n");
+	// uart_send_string("[LOG] [i2c_start_addr] After checking SB bit\n");
 
     // Send address and r/w flag:
     i2c_send_7bit_address(dev->device, addr, rw == I2C_READ ? I2C_READ : I2C_WRITE);
@@ -128,7 +128,7 @@ void i2c_start_addr(I2C_control* dev, uint8_t addr, int rw) {
 			longjmp(i2c_exception,I2C_addr_timeout); 
 		taskYIELD();
 	}
-	uart_send_string("[LOG] [i2c_start_addr] Address received\n");
+	// uart_send_string("[LOG] [i2c_start_addr] Address received\n");
 
     (void)I2C_SR2(dev->device); // clear ADDR flag by reading SR2 after SR1 indicates address sent
 }

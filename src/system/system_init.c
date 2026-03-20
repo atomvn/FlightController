@@ -10,6 +10,7 @@
 
 #include "system_init.h"
 #include "driver/uart.h"
+#include "util/sensor_fusion.h"
 
 void system_init(void) {
     rcc_clock_setup_pll(&rcc_hse_configs[RCC_CLOCK_HSE8_72MHZ]);
@@ -61,6 +62,5 @@ void system_init(void) {
 			     
 	// AFIO_MAPR_I2C1_REMAP=0, PB6+PB7
 	gpio_primary_remap(0,0); 
-
 
 }
