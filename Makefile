@@ -75,6 +75,7 @@ LDFLAGS	  	 += -L$(OPENCM3_DIR)/lib
 LDFLAGS      += -Wl,--gc-sections
 LDFLAGS      += -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map,--cref,--no-warn-mismatch
 LDFLAGS	     += --static -nostartfiles
+LDFLAGS		 += -lm
 
 DEFINES      := -DRUN_FROM_FLASH=1
 DEFINES      += -DSTM32F1

@@ -16,7 +16,6 @@
 
 #define G 9.80665f
 #define PI 3.141592653589793f
-#define RAD_TO_DEG 57.2957795f
 
 /* I2C*/
 I2C_control i2c;

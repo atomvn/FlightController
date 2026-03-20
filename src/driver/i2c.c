@@ -9,7 +9,7 @@
 #include "i2c.h"
 
 #define systicks xTaskGetTickCount
-diff_ticks(TickType_t early,TickType_t later) {
+TickType_t diff_ticks(TickType_t early,TickType_t later) {
 
 	if ( later >= early )
 		return later - early;
@@ -31,7 +31,7 @@ jmp_buf i2c_exception;
  *********************************************************************/
 const char* i2c_error(I2C_errors error_code) {
     int icode = (int)error_code;
-    if (icode < 0 || icode >= sizeof(I2C_errors)/sizeof(I2C_errors[0])) {
+    if (icode < 0 || icode >= sizeof(I2C_errors)/sizeof(error_code)) {
         return "Unknown I2C error";
     }
     return i2c_error_msg[icode];

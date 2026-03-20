@@ -64,7 +64,7 @@ void calculate_mpu6050_angle_acc(
 {
     angle->angle_roll = atan2f(physical_data.accel_y, physical_data.accel_z) * RAD_TO_DEG;
     angle->angle_pitch = atan2f(-physical_data.accel_x, sqrtf(physical_data.accel_y*physical_data.accel_y + physical_data.accel_z*physical_data.accel_z)) * RAD_TO_DEG;
-    uart_printf(">Angle acc roll:%f,Angle acc pitch:%f\r\n", angle->angle_roll, angle->angle_pitch);
+    // uart_printf(">Angle acc roll:%f,Angle acc pitch:%f\r\n", angle->angle_roll, angle->angle_pitch);
 }
 
 void calculate_calibrate_offset(mpu6050_calibrating_offset *offsets) {

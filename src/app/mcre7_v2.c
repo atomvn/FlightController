@@ -32,7 +32,6 @@ void mcre7_v2_task(void* params){
     sbus_dma_init();
     while(1) {
         sbus_parse();
-        gpio_toggle(GPIOC, GPIO13);
         uart_send_string("***********************MCRE data*********************\n");
         uart_printf("Channel 1: %u\n", (uint32_t)rc_channels[0]);
         uart_printf("Channel 2: %u\n", (uint32_t)rc_channels[1]);
@@ -40,6 +39,6 @@ void mcre7_v2_task(void* params){
         uart_printf("Channel 4: %u\n", (uint32_t)rc_channels[3]);
         uart_printf("Channel 5: %u\n", (uint32_t)rc_channels[4]);
         uart_printf("Channel 6: %u\n", (uint32_t)rc_channels[5]);
-        vTaskDelay(pdMS_TO_TICKS(200));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
