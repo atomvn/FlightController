@@ -36,7 +36,10 @@ make erase
 # Roadmap
 - [x] read MPU6050
 - [x] read MCRE7v2
-- [] PID algr for outer loop: refine angle error
+- [x] apply kalman filter to calculate mpu6050 angle
+[] control brushless and servo motor
+[] PID algr for outer loop: refine angle error
+[] PID algr for inner loop: refine rate error
 
 # Common errors on Ubuntu 20.04 dev enviroment
 1. st-flash    
