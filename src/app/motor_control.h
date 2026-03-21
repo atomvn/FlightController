@@ -22,24 +22,6 @@ static const float PID_OUT_MAX = 200.0f;
 static const float INTEGRAL_MIN = -50.0f;
 static const float INTEGRAL_MAX = 50.0f;
 
-typedef struct {
-    float kp, ki, kd;
-
-    float integral;
-    float prev_error;
-
-    float integral_min;
-    float integral_max;
-
-    float out_min, out_max;
-
-} PID_t;
-
-PID_t pid_angle_roll;
-PID_t pid_angle_pitch;
-PID_t pid_rate_roll;
-PID_t pid_rate_pitch;
-
 void motor_arm(void);
 uint8_t is_motor_locked(void);
 uint8_t is_transmitter_powered_on(void);
@@ -48,9 +30,6 @@ void set_servo(uint8_t channel, uint16_t us);
 uint16_t convert_sbus_to_pwm(uint16_t sbus_value);
 uint16_t convert_sbus_to_pwm_servo(uint16_t sbus_value);
 float convert_sbus_to_angle(uint16_t value);
-// void pid_init(PID_t* pid);
-void pid_init(PID_t *pid, float kp, float ki, float kd, float out_min, float out_max, float integral_min, float integral_max);
-float pid_update(PID_t* pid, float setpoint, float measurement, float dt);
 void motor_task(void* param);
 void pid_task(void* param);
 

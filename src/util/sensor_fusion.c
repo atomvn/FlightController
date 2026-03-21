@@ -8,13 +8,13 @@ void kalman_init(kalman_filter* k) {
     k->P[0][0] = 0; // angle uncertainty
     k->P[0][1] = 0; // bias uncertainty
     k->P[1][0] = 0; // relation between angle and bias
-    k->P[1][1] = 0;
+    k->P[1][1] = 0; // relation between angle and bias
 
     /* noise*/
     k->Q_angle = 0.001f;
     k->Q_bias = 0.003f;
     k->R_measure = 0.03f;
-    /*| tham số    | tăng lên thì          |
+    /*| paremeter   | increase          |
       | ----------- | --------------------- |
       | Q_angle ↑   | tin accel hơn         |
       | Q_bias ↑    | bias update nhanh hơn |

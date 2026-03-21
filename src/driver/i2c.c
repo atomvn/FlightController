@@ -63,7 +63,7 @@ static void i2c_reset(uint32_t i2c) {
 /*********************************************************************
  * Configure I2C device for 100 kHz, 7-bit addresses
  *********************************************************************/
-void i2c_configure(I2C_control* dev, uint32_t i2c, uint32_t ticks) {
+void i2c_init(I2C_control* dev, uint32_t i2c, uint32_t ticks) {
     dev->device = i2c;
     dev->timeout = ticks;
 

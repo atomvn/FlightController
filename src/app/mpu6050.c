@@ -18,7 +18,7 @@ void mpu6050_write_to_reg(uint8_t reg, uint8_t data) {
 }
 
 void mpu6050_init() {
-    i2c_configure(&i2c, I2C1, 100);
+    i2c_init(&i2c, I2C1, 100);
     mpu6050_write_to_reg(MPU6050_PWR_MGMT_1, 0x00); // Wake up the sensor
     mpu6050_write_to_reg(MPU6050_SMPLRT_DIV, 0x07); 
     mpu6050_write_to_reg(MPU6050_GYRO_CFG, 0x10); // measure range +- 1000 degree/s, raw_data / 32.8
@@ -53,11 +53,6 @@ void convert_raw_to_physical(mpu6050_raw_data *raw_data, mpu6050_physical_data *
     physical_data->gyro_y  = raw_data->gyro_y / 32.8f;
     physical_data->gyro_z  = raw_data->gyro_z / 32.8f;
 }
-
-// void calculate_mpu6050_angle_acc(mpu6050_angle* angle_acc) {
-//     angle_acc->angle_roll = atan(physical_data.accel_y / sqrt(physical_data.accel_x*physical_data.accel_x + physical_data.accel_z*physical_data.accel_z))*RAD_TO_DEG;
-//     angle_acc->angle_pitch = atan(physical_data.accel_x / sqrt(physical_data.accel_y*physical_data.accel_y + physical_data.accel_z*physical_data.accel_z))*RAD_TO_DEG;
-// }
 
 void calculate_mpu6050_angle_acc(
     mpu6050_angle *angle)
@@ -114,7 +109,6 @@ void mpu6050_task(void *params) {
         /*uart_printf("Physical Accel: X=%f g, Y=%f g, Z=%f g | Physical Gyro: X=%f °/s, Y=%f °/s, Z=%f °/s\n",
                     physical_data.accel_x, physical_data.accel_y, physical_data.accel_z,
                     physical_data.gyro_x, physical_data.gyro_y, physical_data.gyro_z);*/
-        // gpio_toggle(GPIOC, GPIO13); // Toggle an LED to indicate reading
         vTaskDelay(2 / portTICK_PERIOD_MS);
     }
 }

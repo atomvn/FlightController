@@ -23,7 +23,7 @@ typedef struct {
 extern jmp_buf i2c_jmpbuf;
 
 const char* i2c_error(I2C_errors error_code);
-void i2c_configure(I2C_control* dev, uint32_t i2c, uint32_t ticks);
+void i2c_init(I2C_control* dev, uint32_t i2c, uint32_t ticks);
 void i2c_wait_busy(I2C_control* dev);
 void i2c_start_addr(I2C_control* dev, uint8_t addr, int rw);
 void i2c_write(I2C_control* dev, uint8_t data);
