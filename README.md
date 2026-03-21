@@ -5,7 +5,7 @@ A simple flight controller for fixed-wing plane.
 
 # How to install and run the project
 This section provides a list of prerequisites for this project as well as instructions on running it.    
-##Prerequisites   
+## Prerequisites   
 - GNU ARM GCC
 ```bash
 sudo apt install gcc-arm-none-eabi
@@ -19,7 +19,7 @@ https://github.com/texane/stlink
 https://github.com/freelamb/stm32f10x_makefile_freertos/tree/master?tab=readme-ov-file
 ```
 
-##Running
+## Running
 - Build the code 
 ```bash
 make
