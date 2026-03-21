@@ -14,8 +14,9 @@ int main(void) {
     system_init();
     uart_send_string("Hello, World!\n");
     xTaskCreate(mpu6050_task, "MPU6050", 512, NULL, configMAX_PRIORITIES - 1, NULL);
-    xTaskCreate(mcre7_v2_task, "MCRE7_v2", 512, NULL, configMAX_PRIORITIES - 1, NULL);
-    xTaskCreate(motor_task, "Motor control", 512, NULL, configMAX_PRIORITIES - 2, NULL);
+    xTaskCreate(mcre7_v2_task, "MCRE7_v2", 512, NULL, configMAX_PRIORITIES - 2, NULL);
+    // xTaskCreate(motor_task, "Motor control", 512, NULL, configMAX_PRIORITIES - 2, NULL);
+    xTaskCreate(pid_task, "PID control task", 512, NULL, configMAX_PRIORITIES - 2, NULL);
     vTaskStartScheduler();
     while(1);
 }

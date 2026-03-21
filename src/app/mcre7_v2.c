@@ -32,13 +32,13 @@ void mcre7_v2_task(void* params){
     sbus_dma_init();
     while(1) {
         sbus_parse();
-        uart_send_string("***********************MCRE data*********************\n");
-        uart_printf("Channel 1: %u\n", (uint32_t)rc_channels[0]);
-        uart_printf("Channel 2: %u\n", (uint32_t)rc_channels[1]);
-        uart_printf("Channel 3: %u\n", (uint32_t)rc_channels[2]);
-        uart_printf("Channel 4: %u\n", (uint32_t)rc_channels[3]);
-        uart_printf("Channel 5: %u\n", (uint32_t)rc_channels[4]);
-        uart_printf("Channel 6: %u\n", (uint32_t)rc_channels[5]);
+        // uart_send_string("***********************MCRE data*********************\n");
+        // uart_printf("Channel 1: %u\n", (uint32_t)rc_channels[0]);
+        // uart_printf("Channel 2: %u\n", (uint32_t)rc_channels[1]);
+        // uart_printf("Channel 3: %u\n", (uint32_t)rc_channels[2]);
+        // uart_printf("Channel 4: %u\n", (uint32_t)rc_channels[3]);
+        // uart_printf("Channel 5: %u\n", (uint32_t)rc_channels[4]);
+        // uart_printf("Channel 6: %u\n", (uint32_t)rc_channels[5]);
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

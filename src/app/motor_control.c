@@ -6,7 +6,9 @@
 
 #include "mcre7_v2.h"
 #include "driver/pwm.h"
+#include "driver/uart.h"
 #include "motor_control.h"
+#include "mpu6050.h"
 
 void motor_arm(void) {
     for (int i=0; i < 100; i++) {
@@ -58,6 +60,77 @@ uint16_t convert_sbus_to_pwm_servo(uint16_t sbus_value) {
     return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_SERVO_MIN_VALUE) + PWM_PULSE_WIDTH_RANGE / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
+/* linear mapping sbus to angle: output = (input - center) * (output_range / input_range)*/
+float convert_sbus_to_angle(uint16_t value) {
+    if (value < RECEIVER_SERVO_MIN_VALUE) value = RECEIVER_SERVO_MIN_VALUE;
+    if (value > RECEIVER_SERVO_MAX_VALUE) value = RECEIVER_SERVO_MAX_VALUE;
+    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (60.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
+}
+
+// void pid_init(PID_t* pid, ) {
+//     pid->kp = KP;
+//     pid->ki = KI;
+//     pid->kd = KD;
+
+//     pid->integral = 0.0f;
+//     pid->prev_error = 0.0f;
+
+//     pid->out_min = PID_OUT_MIN;
+//     pid->out_max = PID_OUT_MAX;
+
+//     pid->integral_min = INTEGRAL_MIN;
+//     pid->integral_max = INTEGRAL_MAX;
+// }
+
+void pid_init(PID_t *pid,
+              float kp, float ki, float kd,
+              float out_min, float out_max,
+              float integral_min, float integral_max)
+{
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+
+    pid->integral = 0.0f;
+    pid->prev_error = 0.0f;
+
+    pid->out_min = out_min;
+    pid->out_max = out_max;
+
+    pid->integral_min = integral_min;
+    pid->integral_max = integral_max;
+}
+
+float pid_update(PID_t *pid, float setpoint, float measurement, float dt)
+{
+    if (dt <= 0.0001f) dt = 0.0001f;
+    float error = setpoint - measurement;
+
+    // P
+    float P = pid->kp * error;
+
+    // I
+    pid->integral += error * dt;
+    // anti-windup
+    if (pid->integral > pid->integral_max) pid->integral = pid->integral_max;
+    if (pid->integral < pid->integral_min) pid->integral = pid->integral_min;
+    float I = pid->ki * pid->integral;
+
+    // D
+    float derivative = (error - pid->prev_error) / dt;
+    float D = pid->kd * derivative;
+
+    pid->prev_error = error;
+
+    float output = P + I + D;
+
+    // clamp
+    if (output > pid->out_max) output = pid->out_max;
+    if (output < pid->out_min) output = pid->out_min;
+
+    return output;
+}
+
 void motor_task(void* param) {
     (void)param;
     while(1) {
@@ -73,5 +146,64 @@ void motor_task(void* param) {
             }
             // 50Hz
             vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+void pid_task(void* param) {
+    (void)param;
+    // Outer loop (angle)
+    pid_init(&pid_angle_roll,
+             3.0f, 0.0f, 0.0f,
+             -200.0f, 200.0f,
+             -50.0f, 50.0f);
+    pid_init(&pid_angle_pitch,
+             3.0f, 0.0f, 0.0f,
+             -200.0f, 200.0f,
+             -50.0f, 50.0f);
+    // Inner loop (rate)
+    pid_init(&pid_rate_roll,
+             3.0f, 0.0f, 0.002f,
+             -500.0f, 500.0f,
+             -100.0f, 100.0f);
+    pid_init(&pid_rate_pitch,
+             0.1f, 0.0f, 0.002f,
+             -500.0f, 500.0f,
+             -100.0f, 100.0f);
+    float dt = 0.01f;
+    while(1) {
+        /* Read state*/
+        float roll = angle.angle_roll;
+        float pitch = angle.angle_pitch;
+
+        float gyro_roll = physical_data.gyro_x;
+        float gyro_pitch = physical_data.gyro_y;
+
+        /* Rx Input*/
+        float desired_roll = convert_sbus_to_angle(rc_channels[0]);
+        float desired_pitch = convert_sbus_to_angle(rc_channels[1]);
+        // uart_printf(">Desired roll:%f,Desired pitch:%f\r\n", desired_roll, desired_pitch);
+
+        /* Outer loop*/
+        float desired_roll_rate = pid_update(&pid_angle_roll, desired_roll, roll, dt);
+        float desired_pitch_rate = pid_update(&pid_angle_pitch, desired_pitch, pitch, dt);
+        // uart_printf(">Desired roll rate:%f,Desired pitch rate:%f\r\n", desired_roll_rate, desired_pitch_rate);
+
+        /* Inner loop*/
+        float roll_out = pid_update(&pid_rate_roll, desired_roll_rate, gyro_roll, dt);
+        float pitch_out = pid_update(&pid_rate_pitch, 0, gyro_pitch, dt);
+        // uart_printf(">PID roll:%f,PID pitch:%f\r\n", roll_out, pitch_out);
+
+        /* Mixing*/
+        if (is_transmitter_powered_on()) {
+            set_servo(LEFT_SERVO, SERVO_OFFSET + roll_out);
+            set_servo(RIGHT_SERVO, SERVO_OFFSET - roll_out);
+            uart_printf(">Leftservo:%f,Rightservo:%f\r\n", roll_out + SERVO_OFFSET, SERVO_OFFSET - pitch_out);
+        }
+
+        uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
+        if (!is_motor_locked()) {
+            set_throttle(throttle);
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

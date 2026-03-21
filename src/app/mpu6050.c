@@ -110,7 +110,7 @@ void mpu6050_task(void *params) {
         last = now;
         angle.angle_roll = kalman_update(&kalman_roll, angle_acc.angle_roll, physical_data.gyro_x, dt);
         angle.angle_pitch = kalman_update(&kalman_pitch, angle_acc.angle_pitch, physical_data.gyro_y, dt);
-        uart_printf(">Angle roll:%f,Angle pitch:%f\r\n", angle.angle_roll, angle.angle_pitch);
+        // uart_printf(">Angle roll:%f,Angle pitch:%f\r\n", angle.angle_roll, angle.angle_pitch);
         /*uart_printf("Physical Accel: X=%f g, Y=%f g, Z=%f g | Physical Gyro: X=%f °/s, Y=%f °/s, Z=%f °/s\n",
                     physical_data.accel_x, physical_data.accel_y, physical_data.accel_z,
                     physical_data.gyro_x, physical_data.gyro_y, physical_data.gyro_z);*/
