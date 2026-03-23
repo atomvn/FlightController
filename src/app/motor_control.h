@@ -4,23 +4,15 @@
 
 #define LEFT_SERVO 1
 #define RIGHT_SERVO 2
-
-static const uint16_t RECEIVER_MOTOR_MIN_VALUE = 200;
-static const uint16_t RECEIVER_MOTOR_MAX_VALUE = 1608;
-static const uint16_t RECEIVER_SERVO_MIN_VALUE = 600;
-static const uint16_t RECEIVER_SERVO_MAX_VALUE = 1400;
-static const uint16_t RECEIVER_SERVO_MID_VALUE = RECEIVER_SERVO_MIN_VALUE + (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE) / 2;
-static const uint16_t MIN_PWM_PULSE_WIDTH = 1000;
-static const uint16_t MAX_PWM_PULSE_WIDTH = 2000;
-static const uint16_t PWM_PULSE_WIDTH_RANGE = MAX_PWM_PULSE_WIDTH - MIN_PWM_PULSE_WIDTH;
-static const uint16_t SERVO_OFFSET = 1500;
-static const float KP = 3.0f;
-static const float KI = 0.0f;
-static const float KD = 0.0f;
-static const float PID_OUT_MIN = -200.0f;
-static const float PID_OUT_MAX = 200.0f;
-static const float INTEGRAL_MIN = -50.0f;
-static const float INTEGRAL_MAX = 50.0f;
+#define RECEIVER_MOTOR_MIN_VALUE 200
+#define RECEIVER_MOTOR_MAX_VALUE 1608
+#define RECEIVER_SERVO_MIN_VALUE 600
+#define RECEIVER_SERVO_MAX_VALUE 1400
+#define RECEIVER_SERVO_MID_VALUE (RECEIVER_SERVO_MIN_VALUE + (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE) / 2)
+#define MIN_PWM_PULSE_WIDTH 1000
+#define MAX_PWM_PULSE_WIDTH 2000
+#define PWM_PULSE_WIDTH_RANGE (MAX_PWM_PULSE_WIDTH - MIN_PWM_PULSE_WIDTH)
+#define SERVO_OFFSET 1500
 
 void motor_arm(void);
 uint8_t is_motor_locked(void);
