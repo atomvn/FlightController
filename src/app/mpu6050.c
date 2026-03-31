@@ -57,8 +57,9 @@ void convert_raw_to_physical(mpu6050_raw_data *raw_data, mpu6050_physical_data *
 void calculate_mpu6050_angle_acc(
     mpu6050_angle *angle)
 {
-    angle->angle_roll = atan2f(physical_data.accel_y, physical_data.accel_z) * RAD_TO_DEG;
-    angle->angle_pitch = atan2f(-physical_data.accel_x, sqrtf(physical_data.accel_y*physical_data.accel_y + physical_data.accel_z*physical_data.accel_z)) * RAD_TO_DEG;
+    /* For my MPU6050, roll and pitch angle are inverted (may be due to hardware fault) so equations to calculate roll and pitch angle are also inverted here to satisfy for that error*/
+    angle->angle_roll = -atan(physical_data.accel_x / sqrt(physical_data.accel_y*physical_data.accel_y + physical_data.accel_z*physical_data.accel_z)) * RAD_TO_DEG;
+    angle->angle_pitch = atan(physical_data.accel_y / sqrt(physical_data.accel_x*physical_data.accel_x + physical_data.accel_z*physical_data.accel_z)) * RAD_TO_DEG;
     // uart_printf(">Angle acc roll:%f,Angle acc pitch:%f\r\n", angle->angle_roll, angle->angle_pitch);
 }
 
@@ -81,6 +82,9 @@ void calculate_calibrate_offset(mpu6050_calibrating_offset *offsets) {
 }
 
 void apply_calibration(mpu6050_physical_data *data, mpu6050_calibrating_offset *offsets) {
+    data->accel_x -= MANUAL_ACCELX_CALIB_VALUE ;
+    data->accel_y -= MANUAL_ACCELY_CALIB_VALUE ;
+    data->accel_z -= MANUAL_ACCELZ_CALIB_VALUE ;
     data->gyro_x  -= offsets->gyro_x_offset;
     data->gyro_y  -= offsets->gyro_y_offset;
     data->gyro_z  -= offsets->gyro_z_offset;
@@ -91,8 +95,11 @@ void mpu6050_task(void *params) {
     mpu6050_calibrating_offset offsets;
     mpu6050_init();
     calculate_calibrate_offset(&offsets);
+    calculate_mpu6050_angle_acc(&angle_acc);
     kalman_init(&kalman_roll);
     kalman_init(&kalman_pitch);
+    kalman_roll.angle = angle.angle_roll;
+    kalman_pitch.angle = angle.angle_pitch;
     TickType_t last = xTaskGetTickCount();
     // uart_send_string("[LOG] [mpu6050_task] Done MPU6050 init\n");
     while (1) {
@@ -103,12 +110,13 @@ void mpu6050_task(void *params) {
         TickType_t now = xTaskGetTickCount();
         float dt = (now - last) * portTICK_PERIOD_MS / 1000.0f;
         last = now;
-        angle.angle_roll = kalman_update(&kalman_roll, angle_acc.angle_roll, physical_data.gyro_x, dt);
-        angle.angle_pitch = kalman_update(&kalman_pitch, angle_acc.angle_pitch, physical_data.gyro_y, dt);
-        // uart_printf(">Angle roll:%f,Angle pitch:%f\r\n", angle.angle_roll, angle.angle_pitch);
-        /*uart_printf("Physical Accel: X=%f g, Y=%f g, Z=%f g | Physical Gyro: X=%f °/s, Y=%f °/s, Z=%f °/s\n",
-                    physical_data.accel_x, physical_data.accel_y, physical_data.accel_z,
-                    physical_data.gyro_x, physical_data.gyro_y, physical_data.gyro_z);*/
+        // gyro_y for roll and x for pitch as for my MPU6050, roll and pitch are inverted
+        angle.angle_roll = kalman_update(&kalman_roll, angle_acc.angle_roll, physical_data.gyro_y, dt);
+        angle.angle_pitch = kalman_update(&kalman_pitch, angle_acc.angle_pitch, physical_data.gyro_x, dt);
+        uart_printf(">Angle roll:%f,Angle pitch:%f\r\n", angle.angle_roll, angle.angle_pitch);
+        // uart_printf("Physical Accel: X=%f g, Y=%f g, Z=%f g | Physical Gyro: X=%f °/s, Y=%f °/s, Z=%f °/s\n",
+        //             physical_data.accel_x, physical_data.accel_y, physical_data.accel_z,
+        //             physical_data.gyro_x, physical_data.gyro_y, physical_data.gyro_z);
         vTaskDelay(2 / portTICK_PERIOD_MS);
     }
 }

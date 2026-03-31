@@ -1,7 +1,7 @@
 #ifndef SENSOR_FUSION_H
 #define SENSOR_FUSION_H
 
-#define RAD_TO_DEG (3.14159265/180)
+#define RAD_TO_DEG (180/3.14159265)
 
 typedef struct {
     float angle;
