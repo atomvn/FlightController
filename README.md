@@ -32,14 +32,19 @@ make flash
 ```bash
 make erase
 ```
+## Hardware mapping
+![alt text](https://github.com/atomvn/FlightController/blob/main/asset/hardware_mapping.jpg)
 
 # Roadmap
 - [x] Ability to communicate with MPU6050
 - [x] Read MCRE7v2
 - [x] Apply Kalman filter to estimate angle from MPU6050
-- [ ] Control brushless and servo motor
-- [ ] Implement PID algorithm for outer loop (angle error correction)
-- [ ] Implement PID algorithm for inner loop (angular rate error correction)
+- [x] Control brushless and servo motor
+- [x] Implement PID algorithm for outer loop (angle error correction)
+- [x] Implement PID algorithm for inner loop (angular rate error correction)
+- [ ] Implement normal flight mode besides balancing mode
+- [ ] Add GPS
+- [ ] Implement return to home feature
 
 # Common errors on Ubuntu 20.04 dev enviroment
 1. st-flash    
