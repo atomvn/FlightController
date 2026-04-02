@@ -37,9 +37,9 @@ make erase
 - [x] Ability to communicate with MPU6050
 - [x] Read MCRE7v2
 - [x] Apply Kalman filter to estimate angle from MPU6050
-- [] Control brushless and servo motor
-- [] Implement PID algorithm for outer loop (angle error correction)
-- [] Implement PID algorithm for inner loop (angular rate error correction)
+- [ ] Control brushless and servo motor
+- [ ] Implement PID algorithm for outer loop (angle error correction)
+- [ ] Implement PID algorithm for inner loop (angular rate error correction)
 
 # Common errors on Ubuntu 20.04 dev enviroment
 1. st-flash    
