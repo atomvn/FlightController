@@ -18,13 +18,15 @@
 
 void motor_arm(void);
 uint8_t is_motor_locked(void);
+uint8_t is_normal_mode_enabled(void);
+uint8_t is_balancing_flight_mode_enabled(void);
 uint8_t is_transmitter_powered_on(void);
 void set_throttle(uint16_t us);
 void set_servo(uint8_t channel, uint16_t us);
 uint16_t convert_sbus_to_pwm(uint16_t sbus_value);
 uint16_t convert_sbus_to_pwm_servo(uint16_t sbus_value);
-float convert_sbus_to_angle(uint16_t value);
-void motor_task(void* param);
-void pid_task(void* param);
+float convert_sbus_to_angle_roll(uint16_t value);
+float convert_sbus_to_angle_pitch(uint16_t value);
+void flight_task(void* params);
 
 #endif

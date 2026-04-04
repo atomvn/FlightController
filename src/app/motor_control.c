@@ -19,7 +19,21 @@ void motor_arm(void) {
 }
 
 uint8_t is_motor_locked(void) {
-    if(rc_channels[4] != 1800){
+    if(rc_channels[4] == 1800){
+        return 1;
+    }
+    return 0;
+}
+
+uint8_t is_normal_mode_enabled(void) {
+    if(rc_channels[4] == 1000) {
+        return 1;
+    }
+    return 0;
+}
+
+uint8_t is_balancing_flight_mode_enabled(void) {
+    if(rc_channels[4] == 200) {
         return 1;
     }
     return 0;
@@ -51,45 +65,27 @@ uint16_t convert_sbus_to_pwm(uint16_t sbus_value) {
     if (sbus_value < RECEIVER_MOTOR_MIN_VALUE) sbus_value = RECEIVER_MOTOR_MIN_VALUE;
     if (sbus_value > RECEIVER_MOTOR_MAX_VALUE) sbus_value = RECEIVER_MOTOR_MAX_VALUE;
     // linear interpolation: output = out_min + (input - in_min) * (out_range / in_range)
-    return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_MOTOR_MIN_VALUE) + PWM_PULSE_WIDTH_RANGE / (RECEIVER_MOTOR_MAX_VALUE - RECEIVER_MOTOR_MIN_VALUE);
+    return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_MOTOR_MIN_VALUE) * PWM_PULSE_WIDTH_RANGE / (RECEIVER_MOTOR_MAX_VALUE - RECEIVER_MOTOR_MIN_VALUE);
 }
 
 uint16_t convert_sbus_to_pwm_servo(uint16_t sbus_value) {
     if (sbus_value < RECEIVER_SERVO_MIN_VALUE) sbus_value = RECEIVER_SERVO_MIN_VALUE;
     if (sbus_value > RECEIVER_SERVO_MAX_VALUE) sbus_value = RECEIVER_SERVO_MAX_VALUE;
     // linear interpolation: output = out_min + (input - in_min) * (out_range / in_range)
-    return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_SERVO_MIN_VALUE) + PWM_PULSE_WIDTH_RANGE / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
+    return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_SERVO_MIN_VALUE) * PWM_PULSE_WIDTH_RANGE / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
 /* linear mapping sbus to angle: output = (input - center) * (output_range / input_range)*/
 float convert_sbus_to_angle_roll(uint16_t value) {
     if (value < RECEIVER_SERVO_MIN_VALUE) value = RECEIVER_SERVO_MIN_VALUE;
     if (value > RECEIVER_SERVO_MAX_VALUE) value = RECEIVER_SERVO_MAX_VALUE;
-    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (-90.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
+    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (-150.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
 float convert_sbus_to_angle_pitch(uint16_t value) {
     if (value < RECEIVER_SERVO_MIN_VALUE) value = RECEIVER_SERVO_MIN_VALUE;
     if (value > RECEIVER_SERVO_MAX_VALUE) value = RECEIVER_SERVO_MAX_VALUE;
-    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (90.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
-}
-
-void motor_task(void* param) {
-    (void)param;
-    while(1) {
-            uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
-            uint16_t servo1 = convert_sbus_to_pwm_servo(rc_channels[0]);
-            uint16_t servo2 = convert_sbus_to_pwm_servo(rc_channels[1]);
-            if (is_transmitter_powered_on()) {
-                set_servo(1, servo1);
-                set_servo(2, servo2);
-            }
-            if (!is_motor_locked()) {
-                set_throttle(throttle);
-            }
-            // 50Hz
-            vTaskDelay(pdMS_TO_TICKS(20));
-    }
+    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (150.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
 static void servo_output_clamp(float* servo_total_output) {
@@ -101,8 +97,8 @@ static void servo_output_clamp(float* servo_total_output) {
     }
 }
 
-void pid_task(void* param) {
-    (void)param;
+void flight_task(void* params) {
+    (void)params;
     // Outer loop (angle)
     pid_init(&pid_angle_roll,
              4.0f, 0.0f, 0.0f,
@@ -123,46 +119,74 @@ void pid_task(void* param) {
              -100.0f, 100.0f);
     float dt = 0.01f;
     while(1) {
-        /* Read state*/
-        float roll = angle.angle_roll;
-        float pitch = angle.angle_pitch;
+        if (is_balancing_flight_mode_enabled()) {
+            /* Read state*/
+            float roll = angle.angle_roll;
+            float pitch = angle.angle_pitch;
 
-        // float gyro_roll = physical_data.gyro_x;
-        // float gyro_pitch = physical_data.gyro_y;
-        float gyro_roll = physical_data.gyro_y;
-        float gyro_pitch = physical_data.gyro_x;
+            // float gyro_roll = physical_data.gyro_x;
+            // float gyro_pitch = physical_data.gyro_y;
+            float gyro_roll = physical_data.gyro_y;
+            float gyro_pitch = physical_data.gyro_x;
 
-        /* Rx Input*/
-        float desired_roll = convert_sbus_to_angle_roll(rc_channels[0]);
-        float desired_pitch = convert_sbus_to_angle_pitch(rc_channels[1]);
-        // uart_printf(">Desired roll:%f,Desired pitch:%f\r\n", desired_roll, desired_pitch);
+            /* Rx Input*/
+            float desired_roll = convert_sbus_to_angle_roll(rc_channels[0]);
+            float desired_pitch = convert_sbus_to_angle_pitch(rc_channels[1]);
+            // uart_printf(">Desired roll:%f,Desired pitch:%f\r\n", desired_roll, desired_pitch);
 
-        /* Outer loop*/
-        float desired_roll_rate = pid_update(&pid_angle_roll, desired_roll, roll, dt);
-        float desired_pitch_rate = pid_update(&pid_angle_pitch, desired_pitch, pitch, dt);
-        // uart_printf(">Desired roll rate:%f,Desired pitch rate:%f\r\n", desired_roll_rate, desired_pitch_rate);
+            /* Outer loop*/
+            float desired_roll_rate = pid_update(&pid_angle_roll, desired_roll, roll, dt);
+            float desired_pitch_rate = pid_update(&pid_angle_pitch, desired_pitch, pitch, dt);
+            // uart_printf(">Desired roll rate:%f,Desired pitch rate:%f\r\n", desired_roll_rate, desired_pitch_rate);
 
-        /* Inner loop*/
-        float roll_out = pid_update(&pid_rate_roll, desired_roll_rate, gyro_roll, dt);
-        float pitch_out = pid_update(&pid_rate_pitch, desired_pitch_rate, gyro_pitch, dt);
-        float pid_left_servo_output = roll_out - pitch_out;
-        float pid_right_servo_output = roll_out + pitch_out;
-        servo_output_clamp(&pid_left_servo_output);
-        servo_output_clamp(&pid_right_servo_output);
+            /* Inner loop*/
+            float roll_out = pid_update(&pid_rate_roll, desired_roll_rate, gyro_roll, dt);
+            float pitch_out = pid_update(&pid_rate_pitch, desired_pitch_rate, gyro_pitch, dt);
+            float pid_left_servo_out = roll_out - pitch_out;
+            float pid_right_servo_out = roll_out + pitch_out;
+            servo_output_clamp(&pid_left_servo_out);
+            servo_output_clamp(&pid_right_servo_out);
 
-        // uart_printf(">PID roll:%f,PID pitch:%f\r\n", roll_out, pitch_out);
+            // uart_printf(">PID roll:%f,PID pitch:%f\r\n", roll_out, pitch_out);
 
-        /* Mixing*/
-        if (is_transmitter_powered_on()) {
-            set_servo(LEFT_SERVO, SERVO_OFFSET + pid_left_servo_output);
-            set_servo(RIGHT_SERVO, SERVO_OFFSET + pid_right_servo_output);
+            /* Mixing*/
+            if (is_transmitter_powered_on()) {
+                set_servo(LEFT_SERVO, SERVO_OFFSET + pid_left_servo_out);
+                set_servo(RIGHT_SERVO, SERVO_OFFSET + pid_right_servo_out);
+            }
+           
+           
+            uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
+            if (!is_motor_locked()) {
+                set_throttle(throttle);
+            }            
+            vTaskDelay(pdMS_TO_TICKS(10));
+        } else if (is_normal_mode_enabled()) {
+            uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
+            float  desired_roll = (50/4.5f) * convert_sbus_to_angle_roll(rc_channels[0]);
+            float desired_pitch = (50/4.5f) * convert_sbus_to_angle_pitch(rc_channels[1]);
+            // uart_printf("desired_roll: %f, desired_pitch: %f\n", desired_roll, desired_pitch);
+
+            float left_servo_out = desired_roll - desired_pitch;
+            float right_servo_out = desired_roll + desired_pitch;
+            // uart_printf("left_servo_out: %f, right_servo_out: %f\n", left_servo_out, right_servo_out);
+
+            servo_output_clamp(&left_servo_out);
+            servo_output_clamp(&right_servo_out);
+
+            if (is_transmitter_powered_on()) {
+                set_servo(LEFT_SERVO,SERVO_OFFSET + left_servo_out);
+                set_servo(RIGHT_SERVO, SERVO_OFFSET + right_servo_out);
+            }
+            if (!is_motor_locked()) {
+                set_throttle(throttle);
+            }            // 50Hz
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
-        // uart_printf(">Leftservo:%f,Rightservo:%f\r\n", SERVO_OFFSET + roll_out + pitch_out, SERVO_OFFSET + roll_out - pitch_out);
-
-        uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
-        if (!is_motor_locked()) {
-            set_throttle(throttle);
+        else {
+            set_throttle(convert_sbus_to_pwm(RECEIVER_MOTOR_MIN_VALUE));
+            set_servo(LEFT_SERVO, SERVO_OFFSET);
+            set_servo(RIGHT_SERVO, SERVO_OFFSET);
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

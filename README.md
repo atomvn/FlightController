@@ -42,7 +42,7 @@ make erase
 - [x] Control brushless and servo motor
 - [x] Implement PID algorithm for outer loop (angle error correction)
 - [x] Implement PID algorithm for inner loop (angular rate error correction)
-- [ ] Implement normal flight mode besides balancing mode
+- [x] Implement normal flight mode besides balancing mode
 - [ ] Add GPS
 - [ ] Implement return to home feature
 
