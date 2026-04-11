@@ -1,4 +1,13 @@
-// This file redirects the FreeRTOS port to use the libopencm3 interrupt handlers.
+/**
+ * @file opencm3.c
+ * @brief This file redirects the FreeRTOS port to use the libopencm3 interrupt handlers.
+ *
+ * @details
+ *
+ * @author Hao Nguyen
+ * @version 1.0 
+ * @date 2026
+ */
 #include "FreeRTOS.h"
 #include "task.h"
 #include <libopencm3/stm32/rcc.h>
