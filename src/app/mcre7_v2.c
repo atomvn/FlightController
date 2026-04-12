@@ -26,7 +26,11 @@ sbus_mcre7_t g_sbus_mcre7 = {
     .mutex = NULL
 };
 
-/** @brief Decode S-BUS frame */
+/** @brief Decode S-BUS frame 
+ * @param[in] buf Pointer to buffer containing S-BUS frame (25 bytes)
+ * @return None, updates g_sbus_mcre7.rc_channels with decoded values
+ * @pre buf points to a valid S-BUS frame starting with 0x0F
+*/
 static void sbus_decode(volatile uint8_t* buf) {
     g_sbus_mcre7.rc_channels[0]  = (buf[1]        | buf[2]  << 8) & 0x07FF;
     g_sbus_mcre7.rc_channels[1]  = (buf[2]  >> 3  | buf[3]  << 5) & 0x07FF;
@@ -38,7 +42,11 @@ static void sbus_decode(volatile uint8_t* buf) {
     g_sbus_mcre7.rc_channels[7]  = (buf[10] >> 5  | buf[11] << 3) & 0x07FF;
 }
 
-/** @brief Parse S-BUS frames from DMA buffer*/
+/** @brief Parse S-BUS frames from DMA buffer
+ * @details Scans the DMA buffer for valid S-BUS frames and decodes them into RC channel values.
+ * @return None, updates g_sbus_mcre7.rc_channels with decoded values when frames are found
+ * @pre g_sbus_dma_state.sbus_dma_buf contains received data from DMA
+*/
 static void sbus_parse(void) {
     for(int i=0; i<SBUS_DMA_BUF_SIZE-25; i++) {
         if (g_sbus_dma_state.sbus_dma_buf[i] == 0x0F && g_sbus_dma_state.sbus_dma_buf[i+24] == 0x00) {
@@ -47,7 +55,9 @@ static void sbus_parse(void) {
     }
 }
 
-/** @brief Initialize MCRE7 V2 task and resources */
+/** @brief Initialize MCRE7 V2 task and resources 
+ * @return Error code indicating success or type of failure
+*/
 mcre7_v2_error_t mcre7_v2_init(void) {
     if (g_sbus_dma_state.initialized) {
         return MCRE7_V2_OK; // Already initialized, not an error
@@ -69,7 +79,11 @@ mcre7_v2_error_t mcre7_v2_init(void) {
     return MCRE7_V2_OK;
 }
 
-/** @brief Read MCRE7 V2 RC channels with thread safety */
+/** @brief Read MCRE7 V2 RC channels with thread safety 
+ * @param[out] channels Pointer to array to store read channel values (must have space for 16 uint16_t)
+ * @param[in] timeout Maximum time to wait for mutex in milliseconds
+ * @return Error code indicating success or type of failure
+*/
 mcre7_v2_error_t read_mcre7_v2_channels(uint16_t* channels, uint32_t timeout) {
     if (channels == NULL) {
         return MCRE7_V2_INVALID_ARG; // Invalid argument
@@ -86,7 +100,11 @@ mcre7_v2_error_t read_mcre7_v2_channels(uint16_t* channels, uint32_t timeout) {
     }
 }
 
-/** @brief MCRE7 V2 task function */
+/** @brief MCRE7 V2 task function 
+ * @details Main loop that continuously parses S-BUS frames and updates RC channel values. Should be run as a FreeRTOS task.
+ * @param[in] params Task parameters (not used)
+ * @return None
+*/
 void mcre7_v2_task(void* params){
     (void)params;
     mcre7_v2_error_t err = mcre7_v2_init();
