@@ -1,3 +1,14 @@
+/**
+ * @file motor_control.c
+ * @brief Implementation of motor control logic for flight controller
+ *
+ * @details
+ * Implements motor arming, mode checking, throttle and servo control based on S-BUS input and MPU6050 sensor data.
+ * 
+ * @author Hao Nguyen
+ * @version 1.0
+ * @date 2026
+ */
 #include "FreeRTOS.h"
 #include "task.h"
 #include <libopencm3/cm3/common.h>
@@ -11,47 +22,78 @@
 #include "mpu6050.h"
 #include "util/pid.h"
 
-void motor_arm(void) {
+motor_control_state_t g_motor_control_state = {
+    .fligh_mode = 0,
+    .transmitter_powered_on = 0,
+    .mutex = NULL,
+    .timeout = pdMS_TO_TICKS(100) // Default timeout of 100 ms for mutex operations
+};
+
+/** @brief Arm the motors by setting throttle to minimum for a short duration
+ *  @details This function sends a minimum throttle signal for 2 seconds to ensure ESCs are armed. Should be called before enabling flight modes.
+ *  @return None
+ */
+static void motor_arm(void) {
     for (int i=0; i < 100; i++) {
         set_throttle(1000);
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
-uint8_t is_motor_locked(void) {
-    if(rc_channels[4] == 1800){
-        return 1;
+/** @brief Initialize the motor control system
+ *  @details Initializes motor arming and creates mutex for motor control state. Should be called before starting flight task.
+ *  @return Error code indicating success or type of failure
+ */
+static motor_control_error_t motor_control_init(void) {
+    motor_arm();
+    g_motor_control_state.mutex = xSemaphoreCreateMutex();
+    if (g_motor_control_state.mutex == NULL) {
+        return MOTOR_CONTROL_MUTEX_ERROR; // Failed to create mutex
     }
-    return 0;
+    return MOTOR_CONTROL_OK;
 }
 
-uint8_t is_normal_mode_enabled(void) {
-    if(rc_channels[4] == 1000) {
-        return 1;
+/** @brief Update motor control state based on latest S-BUS channel values
+ *  @details Reads S-BUS channels to determine flight mode and transmitter power state, and updates global motor control state with thread safety.
+ *  @return Error code indicating success or type of failure
+ */
+static motor_control_error_t update_motor_control_state(void) {
+    uint16_t rc_channels[CHANNEL_NUM];
+    mcre7_v2_error_t err = read_mcre7_v2_channels(rc_channels, pdMS_TO_TICKS(100));
+    if (err != MCRE7_V2_OK) {
+        uart_printf("[ERROR] Failed to read MCRE7 V2 channels: %d\n", err);
+        return MOTOR_CONTROL_READ_CHANNELS_ERROR; // Keep previous state if we can't read channels
     }
-    return 0;
+    if (xSemaphoreTake(g_motor_control_state.mutex, g_motor_control_state.timeout) != pdTRUE) {
+        return MOTOR_CONTROL_MUTEX_ERROR; // Failed to take mutex, keep previous state
+    }
+    g_motor_control_state.transmitter_powered_on = (rc_channels[4] != 0);
+    if (rc_channels[4] == 1800) {
+        g_motor_control_state.fligh_mode = 0; // Locked
+    } else if (rc_channels[4] == 1000) {
+        g_motor_control_state.fligh_mode = 1; // Normal mode
+    } else if (rc_channels[4] == 200) {
+        g_motor_control_state.fligh_mode = 2; // Balancing flight mode
+    }
+    xSemaphoreGive(g_motor_control_state.mutex);
+    return MOTOR_CONTROL_OK;
 }
 
-uint8_t is_balancing_flight_mode_enabled(void) {
-    if(rc_channels[4] == 200) {
-        return 1;
-    }
-    return 0;
-}
-
-uint8_t is_transmitter_powered_on(void) {
-    if(rc_channels[4] == 0) {
-        return 0;
-    }
-    return 1;
-}
-
+/** @brief Set motor throttle with specified PWM value
+ * @param[in] us PWM pulse width in microseconds (1000-2000) 
+ * @return None
+*/
 void set_throttle(uint16_t us) {
     if (us < 1000) us = 1000;
     if (us > 2000) us = 2000;
     timer_set_oc_value(TIM2, TIM_OC1, us);
 }
 
+/** @brief Send pwm signal to servo
+ * @param[in] channel Servo channel (1 for left servo on PA6, 2 for right servo on PA7)
+ * @param[in] us PWM pulse width in microseconds (1000-2000) 
+ * @return None
+*/
 void set_servo(uint8_t channel, uint16_t us) {
     if (us < 1000) us = 1000;
     if (us > 2000) us = 2000;
@@ -60,7 +102,10 @@ void set_servo(uint8_t channel, uint16_t us) {
     if (channel == 2) timer_set_oc_value(TIM3, TIM_OC2, us);
 }
 
-/* convert from sbus value received from receiver to pwm pulse width*/
+/** @brief convert from sbus motor value received from receiver to PWM value
+ *  @param[in] sbus_value S-BUS channel value (typically 60-1608 for motors)
+ * return PWM pulse width in microseconds (1000-2000)
+*/
 uint16_t convert_sbus_to_pwm(uint16_t sbus_value) {
     if (sbus_value < RECEIVER_MOTOR_MIN_VALUE) sbus_value = RECEIVER_MOTOR_MIN_VALUE;
     if (sbus_value > RECEIVER_MOTOR_MAX_VALUE) sbus_value = RECEIVER_MOTOR_MAX_VALUE;
@@ -68,6 +113,11 @@ uint16_t convert_sbus_to_pwm(uint16_t sbus_value) {
     return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_MOTOR_MIN_VALUE) * PWM_PULSE_WIDTH_RANGE / (RECEIVER_MOTOR_MAX_VALUE - RECEIVER_MOTOR_MIN_VALUE);
 }
 
+
+/** @brief convert from sbus servo value received from receiver to PWN value
+ * @param[in] sbus_value S-BUS channel value (typically 300-1900 for servos)
+ * @return PWM pulse width in microseconds (1000-2000)
+ */
 uint16_t convert_sbus_to_pwm_servo(uint16_t sbus_value) {
     if (sbus_value < RECEIVER_SERVO_MIN_VALUE) sbus_value = RECEIVER_SERVO_MIN_VALUE;
     if (sbus_value > RECEIVER_SERVO_MAX_VALUE) sbus_value = RECEIVER_SERVO_MAX_VALUE;
@@ -75,19 +125,26 @@ uint16_t convert_sbus_to_pwm_servo(uint16_t sbus_value) {
     return MIN_PWM_PULSE_WIDTH + (sbus_value - RECEIVER_SERVO_MIN_VALUE) * PWM_PULSE_WIDTH_RANGE / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
-/* linear mapping sbus to angle: output = (input - center) * (output_range / input_range)*/
+/* */
+/** @brief linear mapping sbus to angle: output = (input - center) * (output_range / input_range)
+ *  @param[in] sbus_value S-BUS channel value (typically 300-1900 for servos)
+ *  @return Desired angle in degrees (-75 to 75)
+*/
 float convert_sbus_to_angle_roll(uint16_t value) {
     if (value < RECEIVER_SERVO_MIN_VALUE) value = RECEIVER_SERVO_MIN_VALUE;
     if (value > RECEIVER_SERVO_MAX_VALUE) value = RECEIVER_SERVO_MAX_VALUE;
-    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (-150.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
+    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (-2*MAX_DESIRED_ANGLE) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
 float convert_sbus_to_angle_pitch(uint16_t value) {
     if (value < RECEIVER_SERVO_MIN_VALUE) value = RECEIVER_SERVO_MIN_VALUE;
     if (value > RECEIVER_SERVO_MAX_VALUE) value = RECEIVER_SERVO_MAX_VALUE;
-    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (150.0f) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
+    return ((int)value - RECEIVER_SERVO_MID_VALUE) * (2*MAX_DESIRED_ANGLE) / (RECEIVER_SERVO_MAX_VALUE - RECEIVER_SERVO_MIN_VALUE);
 }
 
+/** @brief Clamp servo output values
+ *  @param[in,out] servo_total_output Pointer to the servo output value to be clamped
+ */
 static void servo_output_clamp(float* servo_total_output) {
     if (*servo_total_output > MAX_SERVO_OUTPUT) {
         *servo_total_output = MAX_SERVO_OUTPUT;
@@ -97,8 +154,18 @@ static void servo_output_clamp(float* servo_total_output) {
     }
 }
 
+/** @brief Main flight control task
+ *  @details Implements the main control loop for the flight controller, including reading sensor data, calculating PID outputs, and setting motor/servo outputs based on flight mode and S-BUS input.
+ *  @param[in] params Task parameters (not used)
+ *  @return None
+ */
 void flight_task(void* params) {
     (void)params;
+    motor_control_error_t init_err = motor_control_init();
+    if (init_err != MOTOR_CONTROL_OK) {
+        uart_printf("[ERROR] Motor control initialization failed with error code: %d\n", init_err);
+        while(1);
+     }
     // Outer loop (angle)
     pid_init(&pid_angle_roll,
              4.0f, 0.0f, 0.0f,
@@ -119,15 +186,26 @@ void flight_task(void* params) {
              -100.0f, 100.0f);
     float dt = 0.01f;
     while(1) {
-        if (is_balancing_flight_mode_enabled()) {
+        motor_control_error_t motor_control_err = update_motor_control_state();
+        if (motor_control_err != MOTOR_CONTROL_OK) {
+            uart_printf("[ERROR] Failed to update motor control state: %d\n", motor_control_err);
+        }
+
+        uint16_t rc_channels[CHANNEL_NUM];
+        mcre7_v2_error_t mcre_err = read_mcre7_v2_channels(rc_channels, pdMS_TO_TICKS(100));
+        if (mcre_err != MCRE7_V2_OK) {
+            uart_printf("[ERROR] Failed to read MCRE7 V2 channels: %d\n", mcre_err);
+        }
+
+        if (g_motor_control_state.fligh_mode == FLIGHT_MODE_BALANCING) { // Balancing flight mode
             /* Read state*/
-            float roll = angle.angle_roll;
-            float pitch = angle.angle_pitch;
+            float roll = g_mpu6050.angle_roll;
+            float pitch = g_mpu6050.angle_pitch;
 
             // float gyro_roll = physical_data.gyro_x;
             // float gyro_pitch = physical_data.gyro_y;
-            float gyro_roll = physical_data.gyro_y;
-            float gyro_pitch = physical_data.gyro_x;
+            float gyro_roll = g_mpu6050.physical_data.gyro_y;
+            float gyro_pitch = g_mpu6050.physical_data.gyro_x;
 
             /* Rx Input*/
             float desired_roll = convert_sbus_to_angle_roll(rc_channels[0]);
@@ -150,18 +228,18 @@ void flight_task(void* params) {
             // uart_printf(">PID roll:%f,PID pitch:%f\r\n", roll_out, pitch_out);
 
             /* Mixing*/
-            if (is_transmitter_powered_on()) {
+            if (g_motor_control_state.transmitter_powered_on) {
                 set_servo(LEFT_SERVO, SERVO_OFFSET + pid_left_servo_out);
                 set_servo(RIGHT_SERVO, SERVO_OFFSET + pid_right_servo_out);
             }
            
-           
             uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
-            if (!is_motor_locked()) {
+            if (g_motor_control_state.fligh_mode != FLIGHT_MODE_LOCKED) {
                 set_throttle(throttle);
             }            
             vTaskDelay(pdMS_TO_TICKS(10));
-        } else if (is_normal_mode_enabled()) {
+
+        } else if (g_motor_control_state.fligh_mode == FLIGHT_MODE_NORMAL) { // Normal flight mode
             uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
             float  desired_roll = (50/4.5f) * convert_sbus_to_angle_roll(rc_channels[0]);
             float desired_pitch = (50/4.5f) * convert_sbus_to_angle_pitch(rc_channels[1]);
@@ -174,16 +252,16 @@ void flight_task(void* params) {
             servo_output_clamp(&left_servo_out);
             servo_output_clamp(&right_servo_out);
 
-            if (is_transmitter_powered_on()) {
+            if (g_motor_control_state.transmitter_powered_on) {
                 set_servo(LEFT_SERVO,SERVO_OFFSET + left_servo_out);
                 set_servo(RIGHT_SERVO, SERVO_OFFSET + right_servo_out);
             }
-            if (!is_motor_locked()) {
+            if (g_motor_control_state.fligh_mode != FLIGHT_MODE_LOCKED) {
                 set_throttle(throttle);
             }            // 50Hz
             vTaskDelay(pdMS_TO_TICKS(10));
         }
-        else {
+        else { // Locked mode
             set_throttle(convert_sbus_to_pwm(RECEIVER_MOTOR_MIN_VALUE));
             set_servo(LEFT_SERVO, SERVO_OFFSET);
             set_servo(RIGHT_SERVO, SERVO_OFFSET);
