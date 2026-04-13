@@ -44,6 +44,7 @@ make erase
 - [x] Implement PID algorithm for inner loop (angular rate error correction)
 - [x] Implement normal flight mode besides balancing mode
 - [ ] Add GPS
+- [ ] Implement auto takeoff feature
 - [ ] Implement return to home feature
 
 # Common errors on Ubuntu 20.04 dev enviroment
