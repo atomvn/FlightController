@@ -26,9 +26,20 @@ sbus_dma_state_t g_sbus_dma_state = {
     .initialized = false
 };
 
+/** @brief GPS DMA state variable */
+gps_dma_state_t g_gps_dma_state = {
+    .frame_ready = false,
+    .initialized = false
+};
+
 static bool is_uart2_initialized(void) {
     // Check if USART2 is enabled and configured for RX
     return (RCC_APB1ENR & RCC_APB1ENR_USART2EN);
+}
+
+static bool is_uart3_initialized(void) {
+    // Check if USART3 is enabled and configured for RX
+    return (RCC_APB1ENR & RCC_APB1ENR_USART3EN);
 }
 
 /**
@@ -99,6 +110,7 @@ dma_error_t sbus_dma_init(void) {
     return DMA_OK;
 }
 
+/** @brief deinit sbus dma */
 dma_error_t sbus_dma_deinit(void) {
     if (!g_sbus_dma_state.initialized) {
         return DMA_NOT_INITIALIZED; // Not initialized
@@ -114,5 +126,65 @@ dma_error_t sbus_dma_deinit(void) {
     dma_channel_reset(SBUS_DMA_CONTROLLER, SBUS_DMA_CHANNEL);
 
     g_sbus_dma_state.initialized = false;
+    return DMA_OK;
+}
+
+/** @brief Initialize GPS DMA reception
+ * 
+ * Configures DMA1_CHANNEL3 for USART3 RX with frame-based reception.
+ * 
+ * @return 0 on success, negative error code on failure
+ * 
+ * @pre USART3 is initialized and running
+ * @pre No other code is accessing gps_dma buffer
+ * @post DMA is running and receiving GPS data
+ * @post gps_dma.frame_ready indicates when new frame available
+ */
+dma_error_t gps_dma_init(void) {
+    if (g_gps_dma_state.initialized) {
+        uart_printf("[WARN] GPS DMA already initialized\n");
+        return DMA_INITIALIZED; // Already initialized
+    }
+
+    if (!(is_uart3_initialized())) {
+        uart_printf("[ERROR] USART3 not initialized\n");
+        return DMA_UART_NOT_ENABLED; // USART3 not ready
+    }
+    /* clock enable DMA1*/
+    rcc_periph_clock_enable(RCC_DMA1);
+
+    /* reset dma*/
+    dma_channel_reset(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL);
+
+    /* set source/peripheral address*/
+    dma_set_peripheral_address(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL, (uint32_t)&GPS_USART_DR);
+
+    /* set destination/memory address*/
+    dma_set_memory_address(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL, (uint32_t)g_gps_dma_state.gps_dma_buf);
+
+    /* set number of data per transfer after interrupt happen*/
+    dma_set_number_of_data(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL, GPS_DMA_BUF_SIZE);
+
+    /* set read from peripheral */
+    dma_set_read_from_peripheral(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL);
+
+    /* set memory increment mode */
+    dma_enable_memory_increment_mode(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL);
+
+    /* set peripheral and memory data size to 8-bit */
+    dma_set_peripheral_size(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL, DMA_CCR_PSIZE_8BIT);
+
+    /* set memory data size to 8-bit */
+    dma_set_memory_size(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL, DMA_CCR_MSIZE_8BIT);
+
+    /* enable circular mode for continuous reception */
+    dma_enable_circular_mode(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL);
+
+    /* enable the DMA channel */
+    dma_enable_channel(GPS_DMA_CONTROLLER, GPS_DMA_CHANNEL);
+
+    /* enable USART3 RX DMA */
+    usart_enable_rx_dma(USART3);
+    g_gps_dma_state.initialized = true;
     return DMA_OK;
 }
