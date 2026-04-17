@@ -18,12 +18,12 @@
 #include "mcre7_v2.h"
 #include "driver/pwm.h"
 #include "driver/uart.h"
-#include "motor_control.h"
+#include "flight_controller.h"
 #include "mpu6050.h"
 #include "util/pid.h"
 
 motor_control_state_t g_motor_control_state = {
-    .fligh_mode = 0,
+    .flight_mode = 0,
     .transmitter_powered_on = 0,
     .mutex = NULL,
     .timeout = pdMS_TO_TICKS(100) // Default timeout of 100 ms for mutex operations
@@ -69,11 +69,11 @@ static motor_control_error_t update_motor_control_state(void) {
     }
     g_motor_control_state.transmitter_powered_on = (rc_channels[4] != 0);
     if (rc_channels[4] == 1800) {
-        g_motor_control_state.fligh_mode = 0; // Locked
+        g_motor_control_state.flight_mode = 0; // Locked
     } else if (rc_channels[4] == 1000) {
-        g_motor_control_state.fligh_mode = 1; // Normal mode
+        g_motor_control_state.flight_mode = 1; // Normal mode
     } else if (rc_channels[4] == 200) {
-        g_motor_control_state.fligh_mode = 2; // Balancing flight mode
+        g_motor_control_state.flight_mode = 2; // Balancing flight mode
     }
     xSemaphoreGive(g_motor_control_state.mutex);
     return MOTOR_CONTROL_OK;
@@ -197,7 +197,7 @@ void flight_task(void* params) {
             uart_printf("[ERROR] Failed to read MCRE7 V2 channels: %d\n", mcre_err);
         }
 
-        if (g_motor_control_state.fligh_mode == FLIGHT_MODE_BALANCING) { // Balancing flight mode
+        if (g_motor_control_state.flight_mode == FLIGHT_MODE_BALANCING) { // Balancing flight mode
             /* Read state*/
             float roll = g_mpu6050.angle_roll;
             float pitch = g_mpu6050.angle_pitch;
@@ -234,12 +234,12 @@ void flight_task(void* params) {
             }
            
             uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
-            if (g_motor_control_state.fligh_mode != FLIGHT_MODE_LOCKED) {
+            if (g_motor_control_state.flight_mode != FLIGHT_MODE_LOCKED) {
                 set_throttle(throttle);
             }            
             vTaskDelay(pdMS_TO_TICKS(10));
 
-        } else if (g_motor_control_state.fligh_mode == FLIGHT_MODE_NORMAL) { // Normal flight mode
+        } else if (g_motor_control_state.flight_mode == FLIGHT_MODE_NORMAL) { // Normal flight mode
             uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
             float  desired_roll = (50/4.5f) * convert_sbus_to_angle_roll(rc_channels[0]);
             float desired_pitch = (50/4.5f) * convert_sbus_to_angle_pitch(rc_channels[1]);
@@ -256,7 +256,7 @@ void flight_task(void* params) {
                 set_servo(LEFT_SERVO,SERVO_OFFSET + left_servo_out);
                 set_servo(RIGHT_SERVO, SERVO_OFFSET + right_servo_out);
             }
-            if (g_motor_control_state.fligh_mode != FLIGHT_MODE_LOCKED) {
+            if (g_motor_control_state.flight_mode != FLIGHT_MODE_LOCKED) {
                 set_throttle(throttle);
             }            // 50Hz
             vTaskDelay(pdMS_TO_TICKS(10));

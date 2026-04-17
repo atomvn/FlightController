@@ -31,7 +31,7 @@ typedef int32_t motor_control_error_t;
 #define FLIGHT_MODE_BALANCING 2
 
 typedef struct {
-    uint8_t fligh_mode; // 0 = locked, 1 = normal mode, 2 = balancing flight mode
+    uint8_t flight_mode; // 0 = locked, 1 = normal mode, 2 = balancing flight mode
     uint8_t transmitter_powered_on; // 0 = off, 1 = on
     SemaphoreHandle_t mutex;
     uint16_t timeout; // Default timeout of 100 ms for mutex operations

@@ -8,7 +8,7 @@
 #include "app/blink_task.h"
 #include "app/mpu6050.h"
 #include "app/mcre7_v2.h"
-#include "app/motor_control.h"
+#include "app/flight_controller.h"
 
 int main(void) {
     system_init();
