@@ -111,7 +111,7 @@ bin: $(BUILD_DIR)/$(PROJECT_NAME).elf
 	$(OBJCOPY) -O binary $< $(BUILD_DIR)/$(PROJECT_NAME).bin
 
 flash: bin
-	st-flash write $(BUILD_DIR)/$(PROJECT_NAME).bin 0x08000000
+	st-flash --connect-under-reset write $(BUILD_DIR)/$(PROJECT_NAME).bin 0x08000000
 
 erase:
 	st-flash erase
