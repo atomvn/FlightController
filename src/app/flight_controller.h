@@ -25,14 +25,22 @@ typedef int32_t motor_control_error_t;
 #define MIN_SERVO_OUTPUT         -500
 #define MAX_DESIRED_ANGLE        75.0f
 
+/** @brief Detect takeoff condition based on MPU6050 sensor data */
+#define TAKEOFF_ACCEL_THRESHOLD         (2.0f) // Example threshold for vertical acceleration
+#define TAKEOFF_DETECTION_SAMPLES       3 // Number of consecutive samples above threshold to confirm takeoff
+#define TAKEOFF_PITCH_THRESHOLD         45.0f // Threshold for pitch angle during takeoff
+#define TAKEOFF_THROTTLE                MAX_PWM_PULSE_WIDTH // Throttle value to use during takeoff sequence
+#define TAKEOFF_DURATION                pdMS_TO_TICKS(5000) // Run takeoff sequence for 5 seconds
+
 /*************************Motor Control State *************************/
-#define FLIGHT_MODE_LOCKED 0
-#define FLIGHT_MODE_NORMAL 1
+#define FLIGHT_MODE_LOCKED    0
+#define FLIGHT_MODE_NORMAL    1
 #define FLIGHT_MODE_BALANCING 2
 
 typedef struct {
-    uint8_t fligh_mode; // 0 = locked, 1 = normal mode, 2 = balancing flight mode
+    uint8_t flight_mode; // 0 = locked, 1 = normal mode, 2 = balancing flight mode
     uint8_t transmitter_powered_on; // 0 = off, 1 = on
+    bool take_off;
     SemaphoreHandle_t mutex;
     uint16_t timeout; // Default timeout of 100 ms for mutex operations
 } motor_control_state_t;
