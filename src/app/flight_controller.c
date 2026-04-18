@@ -25,9 +25,21 @@
 motor_control_state_t g_motor_control_state = {
     .flight_mode = 0,
     .transmitter_powered_on = 0,
+    .take_off = false,
     .mutex = NULL,
     .timeout = pdMS_TO_TICKS(100) // Default timeout of 100 ms for mutex operations
 };
+
+static uint8_t takeoff_detection_counter = 0;
+
+typedef enum {
+    TAKEOFF_STATE_IDLE,
+    TAKEOFF_STATE_DETECTED,
+    TAKEOFF_STATE_FINISHED
+} takeoff_state_t;
+
+static takeoff_state_t takeoff_state = TAKEOFF_STATE_IDLE;
+static TickType_t takeoff_start_time = 0;
 
 /** @brief Arm the motors by setting throttle to minimum for a short duration
  *  @details This function sends a minimum throttle signal for 2 seconds to ensure ESCs are armed. Should be called before enabling flight modes.
@@ -69,11 +81,14 @@ static motor_control_error_t update_motor_control_state(void) {
     }
     g_motor_control_state.transmitter_powered_on = (rc_channels[4] != 0);
     if (rc_channels[4] == 1800) {
-        g_motor_control_state.flight_mode = 0; // Locked
+        g_motor_control_state.flight_mode = FLIGHT_MODE_LOCKED; // Locked
     } else if (rc_channels[4] == 1000) {
-        g_motor_control_state.flight_mode = 1; // Normal mode
+        g_motor_control_state.flight_mode = FLIGHT_MODE_NORMAL; // Normal mode
     } else if (rc_channels[4] == 200) {
-        g_motor_control_state.flight_mode = 2; // Balancing flight mode
+        g_motor_control_state.flight_mode = FLIGHT_MODE_BALANCING; // Balancing flight mode
+    }
+    if (rc_channels[5] == 200) {
+        g_motor_control_state.take_off = true; // Take off mode
     }
     xSemaphoreGive(g_motor_control_state.mutex);
     return MOTOR_CONTROL_OK;
@@ -154,6 +169,28 @@ static void servo_output_clamp(float* servo_total_output) {
     }
 }
 
+/** @brief Detect takeoff condition based on MPU6050 sensor data
+ *  @details Checks if acceleratio sum exceeds a defined threshold for a certain number of consecutive samples to confirm takeoff condition.
+ *  @return true if takeoff condition is detected, false otherwise
+ */
+static bool detect_takeoff_condition(mpu6050_t *current_mpu6050_data) {
+    float acceleration_sum = current_mpu6050_data->physical_data.accel_x + current_mpu6050_data->physical_data.accel_y + current_mpu6050_data->physical_data.accel_z;
+    uart_printf("[LOG] Acceleration sum: %f", acceleration_sum);
+    
+    if (acceleration_sum > TAKEOFF_ACCEL_THRESHOLD) {
+        takeoff_detection_counter++;
+        if (takeoff_detection_counter >= TAKEOFF_DETECTION_SAMPLES) {
+            takeoff_detection_counter = 0; // Reset counter after confirming takeoff
+            uart_printf("[LOG] Takeoff condition detected!");
+            return true; // Detected takeoff condition (significant drop in vertical acceleration)
+        }
+    }
+    else {
+        takeoff_detection_counter = 0; // Reset counter if condition is not met
+    }
+    return false; // Not takeoff condition
+}
+
 /** @brief Main flight control task
  *  @details Implements the main control loop for the flight controller, including reading sensor data, calculating PID outputs, and setting motor/servo outputs based on flight mode and S-BUS input.
  *  @param[in] params Task parameters (not used)
@@ -197,15 +234,79 @@ void flight_task(void* params) {
             uart_printf("[ERROR] Failed to read MCRE7 V2 channels: %d\n", mcre_err);
         }
 
-        if (g_motor_control_state.flight_mode == FLIGHT_MODE_BALANCING) { // Balancing flight mode
+        mpu6050_t current_mpu6050_data;
+        mpu6050_error_t mpu_err = read_mpu6050_data(&current_mpu6050_data);
+        if (mpu_err != MPU6050_OK) {
+            uart_printf("[ERROR] Failed to read MPU6050 data: %d\n", mpu_err);
+        }
+
+        /* Take off mode*/
+        if (takeoff_state == TAKEOFF_STATE_IDLE && g_motor_control_state.take_off == true) {
+            uart_printf("[LOG] Take_off: %d\n", g_motor_control_state.take_off);
+            if (true == detect_takeoff_condition(&current_mpu6050_data)) {
+                takeoff_state = TAKEOFF_STATE_DETECTED;
+                takeoff_start_time = xTaskGetTickCount();
+                uart_printf("[LOG] Takeoff condition detected, starting takeoff sequence\n");
+                while(xTaskGetTickCount() - takeoff_start_time < TAKEOFF_DURATION) { // Run takeoff sequence for 5 seconds
+                    motor_control_error_t motor_control_err = update_motor_control_state();
+                    if (motor_control_err != MOTOR_CONTROL_OK) {
+                    uart_printf("[ERROR] Failed to update motor control state: %d\n", motor_control_err);
+                    }
+
+                    uart_printf("[LOG] Taking off..............\n");
+                    float desired_roll = 0.0f; // Keep level during takeoff
+                    float desired_pitch = TAKEOFF_PITCH_THRESHOLD;
+
+                    float roll = current_mpu6050_data.angle_roll;
+                    float pitch = current_mpu6050_data.angle_pitch;
+
+                    float gyro_roll = current_mpu6050_data.physical_data.gyro_y;
+                    float gyro_pitch = current_mpu6050_data.physical_data.gyro_x;
+
+                    /* Outer loop*/
+                    float desired_roll_rate = pid_update(&pid_angle_roll, desired_roll, roll, dt);
+                    float desired_pitch_rate = pid_update(&pid_angle_pitch, desired_pitch, pitch, dt);
+                    // uart_printf(">Desired roll rate:%f,Desired pitch rate:%f\r\n", desired_roll_rate, desired_pitch_rate);
+
+                    /* Inner loop*/
+                    float roll_out = pid_update(&pid_rate_roll, desired_roll_rate, gyro_roll, dt);
+                    float pitch_out = pid_update(&pid_rate_pitch, desired_pitch_rate, gyro_pitch, dt);
+                    float pid_left_servo_out = roll_out - pitch_out;
+                    float pid_right_servo_out = roll_out + pitch_out;
+                    servo_output_clamp(&pid_left_servo_out);
+                    servo_output_clamp(&pid_right_servo_out);
+
+                    // uart_printf(">PID roll:%f,PID pitch:%f\r\n", roll_out, pitch_out);
+
+                    /* Mixing*/
+                    if (g_motor_control_state.transmitter_powered_on) {
+                        set_servo(LEFT_SERVO, SERVO_OFFSET + pid_left_servo_out);
+                        set_servo(RIGHT_SERVO, SERVO_OFFSET + pid_right_servo_out);
+                    }
+                
+                    if (g_motor_control_state.flight_mode != FLIGHT_MODE_LOCKED) {
+                        set_throttle(TAKEOFF_THROTTLE);
+                    } else {
+                        set_throttle(MIN_PWM_PULSE_WIDTH);
+                    }
+
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                }
+                takeoff_state = TAKEOFF_STATE_FINISHED;
+                uart_printf("[LOG] Takeoff sequence finished, switching to normal flight mode\n");
+            }
+        }
+
+        /* Balancing flight mode */
+        if (g_motor_control_state.flight_mode == FLIGHT_MODE_BALANCING) { 
             /* Read state*/
-            float roll = g_mpu6050.angle_roll;
-            float pitch = g_mpu6050.angle_pitch;
+            float roll = current_mpu6050_data.angle_roll;
+            float pitch = current_mpu6050_data.angle_pitch;
 
             // float gyro_roll = physical_data.gyro_x;
             // float gyro_pitch = physical_data.gyro_y;
-            float gyro_roll = g_mpu6050.physical_data.gyro_y;
-            float gyro_pitch = g_mpu6050.physical_data.gyro_x;
+            float gyro_roll = current_mpu6050_data.physical_data.gyro_y;
+            float gyro_pitch = current_mpu6050_data.physical_data.gyro_x;
 
             /* Rx Input*/
             float desired_roll = convert_sbus_to_angle_roll(rc_channels[0]);
@@ -239,7 +340,8 @@ void flight_task(void* params) {
             }            
             vTaskDelay(pdMS_TO_TICKS(10));
 
-        } else if (g_motor_control_state.flight_mode == FLIGHT_MODE_NORMAL) { // Normal flight mode
+        /* Normal flight mode */
+        } else if (g_motor_control_state.flight_mode == FLIGHT_MODE_NORMAL) { 
             uint16_t throttle = convert_sbus_to_pwm(rc_channels[2]);
             float  desired_roll = (50/4.5f) * convert_sbus_to_angle_roll(rc_channels[0]);
             float desired_pitch = (50/4.5f) * convert_sbus_to_angle_pitch(rc_channels[1]);
