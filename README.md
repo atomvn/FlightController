@@ -43,8 +43,8 @@ make erase
 - [x] Implement PID algorithm for outer loop (angle error correction)
 - [x] Implement PID algorithm for inner loop (angular rate error correction)
 - [x] Implement normal flight mode besides balancing mode
-- [ ] Add GPS
-- [ ] Implement auto takeoff feature
+- [ ] Add GPS: change status to pending because neo 7m gps cannt be used indoor
+- [x] Implement auto takeoff feature
 - [ ] Implement return to home feature
 
 # Common errors on Ubuntu 20.04 dev enviroment
