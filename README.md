@@ -33,7 +33,7 @@ make flash
 make erase
 ```
 ## Hardware mapping
-![alt text](https://github.com/atomvn/FlightController/blob/main/asset/hardware_mapping.jpg)
+![alt text](https://github.com/atomvn/FlightController/blob/develop/asset/hardware_mapping.jpg)
 
 # Roadmap
 - [x] Ability to communicate with MPU6050
