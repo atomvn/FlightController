@@ -149,6 +149,18 @@ static system_status_t system_init_gpio(void)
         GPIO_MODE_INPUT,
         GPIO_CNF_INPUT_FLOAT,
         GPIO3);                             // PA3 = UART2_RX
+
+    gpio_set_mode(GPIOB,
+    GPIO_MODE_OUTPUT_50_MHZ,                    // Tốc độ cao
+    GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,             // Alternate Function Push-Pull
+    GPIO10);
+
+    // -------- UART3 RX (PB11) for GPS module --------
+    // Floating input (receiver pulls low, we read via UART) 
+    gpio_set_mode(GPIOB,
+        GPIO_MODE_INPUT,
+        GPIO_CNF_INPUT_FLOAT,
+        GPIO11);                            // PB11 = UART3_RX
     
     // -------- I2C1 (PB6/PB7) for sensors --------
     // Open-drain, 50 MHz (allows external pull-ups to work)
@@ -210,6 +222,34 @@ static system_status_t system_init_uart1(void)
     usart_enable(USART1);
     
     g_diagnostics.peripherals.uart1_ok = true;
+    return SYSTEM_OK;
+}
+
+/** @brief Initialize uart3 for Neo7m GPS Module
+ * 
+ * Configuration:
+ * - Baud: 9600 bps (default for Neo7m)
+ * - Data: 8 bits
+ * - Stop: 1 bit
+ * - Parity: None
+ * - Mode: Full duplex (PA10 RX, PA11 TX)
+ * 
+ * @return SYSTEM_OK on success
+ */
+static system_status_t system_init_uart3(void) {
+    rcc_periph_clock_enable(RCC_USART3);
+    
+    // Configure UART3 with default parameters (9600 bps, 8N1)
+    usart_set_baudrate(USART3, 9600);
+    usart_set_databits(USART3, 8);
+    usart_set_stopbits(USART3, USART_STOPBITS_1);
+    usart_set_mode(USART3, USART_MODE_RX);  // Full duplex
+    usart_set_parity(USART3, USART_PARITY_NONE);
+    usart_set_flow_control(USART3, USART_FLOWCONTROL_NONE);
+    
+    // Enable UART3
+    usart_enable(USART3);
+    
     return SYSTEM_OK;
 }
 
@@ -346,6 +386,12 @@ system_status_t system_init(void)
     
     // Initialize communication peripherals
     status = system_init_uart1();
+    if (status != SYSTEM_OK) {
+        return status;
+    }
+
+    // Initialize GPS UART3 for Neo7m GPS Module
+    status = system_init_uart3();
     if (status != SYSTEM_OK) {
         return status;
     }
