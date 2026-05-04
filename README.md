@@ -2,6 +2,7 @@
 
 # FlightController
 A simple flight controller for fixed-wing plane.
+![alt text](https://github.com/atomvn/FlightController/blob/develop/asset/su27.jpg)
 
 # How to install and run the project
 This section provides a list of prerequisites for this project as well as instructions on running it.    
