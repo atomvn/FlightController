@@ -1,7 +1,8 @@
 > Man's dearest possession is life. It is given to him but once, and he must live it so as to feel no torturing regrets for wasted years, never know the burning shame of a mean and petty past. 
 
 # FlightController
-A simple flight controller for fixed-wing plane.
+A simple flight controller for fixed-wing plane.  
+
 ![alt text](https://github.com/atomvn/FlightController/blob/develop/asset/su27.jpg)
 
 # How to install and run the project
