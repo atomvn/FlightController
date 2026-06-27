@@ -49,7 +49,7 @@ make erase
 - [x] Implement auto takeoff feature
 - [ ] Implement return to home feature
 
-# Common errors on Ubuntu 20.04 dev enviroment
+# Troubleshooting
 1. st-flash    
 st-flash: symbol lookup error: st-flash: undefined symbol: stlink_fwrite_option_bytes_32bit   
 How to fix: 
